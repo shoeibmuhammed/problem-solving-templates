@@ -1,0 +1,292 @@
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (1) MO with Rollbacks                   */
+// Time complexity: O((q + n) · √n · insert_time)
+// This code runs for 1 <= n, m, q <=2e5 in 2 seconds
+// remeber when use vector as checkpoints --> reverse it before starting rollbacks!
+// u don't need to care about how to rollback --> just save the res, and changed values in the array
+//
+
+
+
+// problem statement:
+// given n (n <= 5e4) nodes, m (m <= 5e4) edges, and q (5e4) queries,
+// each query given [l, r], connect all edges in the this range, then print the number of connected components in the graph
+// https://codeforces.com/edu/course/2/lesson/7/3/practice/contest/289392/problem/B
+
+
+
+struct DSUrollback
+{
+    // variables
+    ll cnt;
+    stack < array < ll, 4 > > st;
+    vector < ll > parent, sz;
+
+    void init(ll n)
+    {
+        cnt = n;
+        parent.resize(n + 1); sz.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1;
+    }
+
+    ll find(ll u)
+    {
+        while(u != parent[u]) u = parent[u];
+        return u;
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+
+        st.push({-1, -1, -1, -1});
+        if(parent[u] == parent[v]) return 0;
+        st.pop();
+
+        if(sz[u] < sz[v]) swap(u, v);
+
+        st.push({u, sz[u], v, parent[v]});
+
+        parent[v] = u;
+        sz[u] += sz[v];
+        cnt--;
+
+        return 1;
+    }
+
+    void rollback()
+    {
+        auto it = st.top(); st.pop();
+
+        if(it[0] == -1) return;
+
+        parent[it[2]] = it[3];
+        sz[it[0]] = it[1];
+        cnt++;
+    }
+
+    void checkpoint()
+    {
+        st.push({-2, -2, -2, -2});
+    }
+
+    // rollback till the checkpoint (checkpoint is deleted also!)
+    void undo()
+    {
+        while(!st.empty() && st.top()[0] != -2) rollback();
+        if(!st.empty()) st.pop();
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+};
+
+struct _data
+{
+    ll l, r, idx;
+    bool operator < (const _data &other) const { return r < other.r; }
+};
+
+void solve()
+{
+
+    ll n, m; cin >> n >> m;
+    vector < array < ll, 2 > > edges(m);
+    for(auto &i : edges) cin >> i[0] >> i[1];
+
+    ll SQ = (ll)sqrtl(m) + 1ll; // remeber not q !!!
+
+    vector < _data > block[SQ];
+    ll q; cin >> q;
+    for(ll i = 0; i < q; i++)
+    {
+        ll l, r; cin >> l >> r; l--; r--;
+        block[l/SQ].push_back({l, r, i});
+    }
+
+    vector < ll > ans(q);
+
+    for(ll i = 0; i < SQ; i++)
+    {
+        DSUrollback d;
+        d.init(n);
+        sort(all(block[i]));
+        ll currR = (i + 1)*SQ;
+        for(const auto &[_l, _r, _idx] : block[i])
+        {
+            ll l = _l, r = _r, idx = _idx;
+
+            if(r < (i + 1)*SQ)
+            {
+                d.checkpoint();
+                while(l <= r) d.merge(edges[l][0], edges[l][1]), l++;
+                ans[idx] = d.cnt;
+                d.undo();
+
+                continue;
+            }
+
+            while(currR <= r) d.merge(edges[currR][0], edges[currR][1]), currR++;
+
+            d.checkpoint();
+            ll currL = (i + 1)*SQ - 1;
+            while(l <= currL) d.merge(edges[currL][0], edges[currL][1]), currL--;
+            ans[idx] = d.cnt;
+            d.undo();
+        }
+    }
+
+
+
+    for(const auto &i : ans)
+        cout << i << endl;
+
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// find max indicies difference between any two equal values
+// https://www.codechef.com/problems/QCHEF
+
+
+
+struct _data
+{
+    ll l, r, idx;
+    bool operator < (const _data &other) const { return r < other.r; }
+};
+
+
+
+void solve()
+{
+
+    ll n, m, q; cin >> n >> m >> q;
+    vector < ll > a(n);
+    for(auto &i : a) cin >> i;
+
+    ll SQ = (ll)sqrtl(n) + 1ll;
+
+    vector < _data > block[SQ];
+    for(ll i = 0; i < q; i++)
+    {
+        ll l, r; cin >> l >> r; l--; r--;
+        block[l/SQ].push_back({l, r, i});
+    }
+
+    vector < ll > ans(q);
+
+    for(ll i = 0; i < SQ; i++)
+    {
+        vector < ll > first(m + 1, -1), last(m + 1, -1);
+        ll res = 0;
+
+        sort(all(block[i]));
+        ll currR = (i + 1)*SQ;
+
+        for(const auto &[_l, _r, _idx] : block[i])
+        {
+            ll l = _l, r = _r, idx = _idx;
+
+            if(r < (i + 1)*SQ)
+            {
+                // checkpoints
+                ll tmpRes = res;
+                vector < array < ll, 2 > > tmpLast, tmpFirst;
+
+                while(l <= r)
+                {
+                    tmpLast.push_back({a[l], last[a[l]]});
+
+                    last[a[l]] = l;
+
+                    if(first[a[l]] == -1)
+                    {
+                        tmpFirst.push_back({a[l], first[a[l]]});
+                        first[a[l]] = l;
+                    }
+
+                    res = max(res, abs(last[a[l]] - first[a[l]]));
+
+                    l++;
+                }
+                ans[idx] = res;
+
+                // undo
+                res = tmpRes;
+                reverse(all(tmpFirst)); reverse(all(tmpLast));
+                for(const auto &[i, v] : tmpLast) last[i] = v;
+                for(const auto &[i, v] : tmpFirst) first[i] = v;
+
+                continue;
+            }
+
+            while(currR <= r)
+            {
+                last[a[currR]] = currR;
+
+                if(first[a[currR]] == -1) first[a[currR]] = currR;
+
+                res = max(res, abs(last[a[currR]] - first[a[currR]]));
+
+                currR++;
+            }
+
+            // checkpoints
+            ll tmpRes = res;
+            vector < array < ll, 2 > > tmpFirst, tmpLast;
+
+            ll currL = (i + 1)*SQ - 1;
+            while(l <= currL)
+            {
+                tmpFirst.push_back({a[currL], first[a[currL]]});
+
+                first[a[currL]] = currL;
+
+                if(last[a[currL]] == -1)
+                {
+                    tmpLast.push_back({a[currL], last[a[currL]]});
+                    last[a[currL]] = currL;
+                }
+
+                res = max(res, abs(last[a[currL]] - first[a[currL]]));
+
+                currL--;
+            }
+            ans[idx] = res;
+
+            // undo
+            res = tmpRes;
+            reverse(all(tmpFirst)); reverse(all(tmpLast));
+            for(const auto &[i, v] : tmpLast) last[i] = v;
+            for(const auto &[i, v] : tmpFirst) first[i] = v;
+        }
+    }
+
+
+
+    for(const auto &i : ans)
+        cout << i << endl;
+
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

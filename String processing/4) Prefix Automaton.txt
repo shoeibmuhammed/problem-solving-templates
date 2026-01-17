@@ -1,0 +1,62 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*              Prefix Automaton            */
+// construct an automaton (a finite state machine), where the state in it is the current prefix value,
+// and the transition from one state to another will be performed via the next character in O(26n).
+// the current prefix value = aut[len][c], where len is the previous prefix value, and c is the current character.
+// prefix value means also the index that the new character that will be compared to.
+// (j, c) = (pi[j - 1], c) = (pi[pi[j - 1] - 1], c) = .....
+
+
+// calculate the pi-array in O(n).
+vector < ll > pre_function(string s)
+{
+    ll n = (ll)s.size();
+    vector < ll > pi(n, 0);
+
+    for(ll i = 1; i < n; i++)
+    {
+        // j = pi[j - 1], helps us to jump back to the next smaller prefix that could match,
+        // avoiding redundant comparisons (the next smaller prefix/suffix), (p[i] + 1 <= p[i + 1]).
+        ll j = pi[i - 1]; // j or len
+        while(j > 0 && s[i] != s[j]) j = pi[j - 1];
+        if(s[i] == s[j]) j++;
+        pi[i] = j;
+    }
+
+    return pi;
+}
+
+
+// compute the prefix automaton in O(26n)
+vector < vector < ll > > compute_prefix_automaton(string s)
+{
+    s += '#';
+    ll n = (ll)s.size();
+    vector < ll > pi = pre_function(s);
+    vector < vector < ll > > aut(n, vector < ll > (26, 0));
+
+    for(ll i = 0; i < n; i++)
+    {
+        for(ll c = 0; c < 26; c++)
+        {
+            if(i > 0 && (char)('a' + c) != s[i]) aut[i][c] = aut[pi[i - 1]][c];
+            else aut[i][c] = i + ((char)('a' + c) == s[i]);
+        }
+    }
+
+    return aut;
+}
+
+
+/* Note:
+        j = aut[j][(ll)((c - 'a')]; is equivalent to
+        while(j > 0 && s[l] != '?' && s[l] != t[j]) j = pre[j - 1];
+        if(s[l] == '?' || s[l] == t[j]) j++;
+        good time optimization, if the recursive dp make alot of computations!
+*/
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

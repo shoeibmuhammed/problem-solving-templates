@@ -1,0 +1,81 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cld v, cld w) { return v.X*w.Y - v.Y*w.X; }
+
+// computes the orientation of the turn from point a → b → c
+// the sign of the cross product tells you the direction of the turn (orientation) between two vectors.
+// orient(a, b, c) = orient(b, c, a) = orient(c, a, b)
+// orient(a, b, c) > 0  left turn (c is left to ab)
+// orient(a, b, c) = 0  collinear (a, b, c lie on a line)
+// orient(a, b, c) < 0  right turn (c is right to ab)
+T orient(cld a, cld b, cld c) { return cross(b - a, c - a); } // ab cross ac
+
+
+
+/*                              Convex Hull                              */
+// computes the convex hull of a set of 2D points using a variant of the Graham scan algorithm, with optional handling of collinear points.
+// returns the hull in clockwise order.
+//
+
+
+
+bool cw(cld a, cld b, cld c, bool include_collinear = false)
+{
+    ll o = sgn(orient(a, b, c));
+    return (o == -1 || (include_collinear && o == 0));
+}
+
+bool ccw(cld a, cld b, cld c, bool include_collinear = false)
+{
+    ll o = sgn(orient(a, b, c));
+    return (o == 1 || (include_collinear && o == 0));
+}
+
+bool collinear(cld a, cld b, cld c) { return sgn(orient(a, b, c)) == 0; }
+
+vector < cld > convexHull(vector < cld > a, bool include_collinear = false) // O(n * logn)
+{
+    vector < cld > st;
+
+    if(a.empty()) return st;
+
+    cld p0 = *min_element(a.begin(), a.end(), [](cld a, cld b) { return make_pair(a.Y, a.X) < make_pair(b.Y, b.X); });
+
+    sort(a.begin(), a.end(), [&p0](const cld& a, const cld& b)
+    {
+        ll o = sgn(orient(p0, a, b));
+        if(o == 0) return (p0.X - a.X)*(p0.X - a.X) + (p0.Y - a.Y)*(p0.Y - a.Y) < (p0.X - b.X)*(p0.X - b.X) + (p0.Y - b.Y)*(p0.Y - b.Y);
+        return o < 0;
+    });
+
+    if(include_collinear)
+    {
+        ll i = (ll)a.size() - 1;
+        while(i >= 0 && collinear(p0, a[i], a.back())) i--;
+        reverse(a.begin() + i + 1, a.end());
+    }
+
+
+    for(ll i = 0; i < (ll)a.size(); i++)
+    {
+        while(st.size() > 1 && !cw(st[(ll)st.size() - 2], st.back(), a[i], include_collinear)) st.pop_back();
+        if(st.empty() || a[i] != st.back()) st.push_back(a[i]);
+    }
+
+    if(include_collinear == false && st.size() == 2 && st[0] == st[1]) st.pop_back();
+
+    return st; // returns the convex hull points in CW order
+    // don't return duplicates points
+}
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

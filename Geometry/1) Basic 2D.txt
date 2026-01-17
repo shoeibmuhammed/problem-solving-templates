@@ -1,0 +1,89 @@
+//.................................................................................................................................................................................
+
+
+
+/*                              Basic                              */
+//
+//
+
+
+
+// squared distance
+T dist2(cT pt1, cT pt2 = {0, 0})
+{
+    T dx = fabsl(pt1.X - pt2.X);
+    T dy = fabsl(pt1.Y - pt2.Y);
+    return dx*dx + dy*dy;
+}
+
+// euclidean distance
+ld dist(cld pt1, cld pt2 = {0.0L, 0.0L})
+{
+    ld dx = fabsl(pt1.X - pt2.X);
+    ld dy = fabsl(pt1.Y - pt2.Y);
+    return (ld)sqrtl(dx*dx + dy*dy);
+    // return (ld)abs(pt1 - pt2);
+    // return (ld)sqrtl(dist2((T)pt1, (T)pt2));
+}
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// check of twol points are equal or not
+bool isEqual(cld a, cld b) { return sgn(a.X - b.X) == 0 && sgn(a.Y - b.Y) == 0; }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cT v, cT w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cT v, cT w) { return v.X*w.Y - v.Y*w.X; }
+
+// check if two vectors are perpendicular or not
+bool isPerp(cT v, cT w) { return !sgn(dot(v, w)); }
+
+// get the perpendicular vector (rotated 90° anti-clockwise)
+cT perp(cT p) { return {-p.Y, p.X}; }
+
+
+
+//.................................................................................................................................................................................
+
+//.......................
+
+// if 1.999999999 makes it 2
+ll ans = (ll)res;
+if((1.0L - (res - ans)) < eps) ans++;
+cout << ans << endl;
+
+//.......................
+
+
+vector<cld> remove_colinear(vector<cld> pts)
+{
+    if(pts.empty()) return vector< cld >();
+    vector<cld> use;
+    use.push_back(pts[0]);
+    use.push_back(pts[1]);
+    for (int i = 2; true; ++i)
+    {
+        cld a = use[(int)use.size() - 2];
+        cld b = use[(int)use.size() - 1];
+        if (sgn(cross(b - a, pts[i % (int)pts.size()] - a)) == 0)
+            use.pop_back();
+        if (i == (int)pts.size())
+            break;
+        use.push_back(pts[i]);
+    }
+
+    cld a = use[(int)use.size() - 1];
+    cld b = use[0];
+    cld c = use[1];
+    if (sgn(cross(b - a, c - a)) == 0)
+        use.erase(use.begin());
+
+    return use;
+}
+
+//.......................
+
+//.................................................................................................................................................................................

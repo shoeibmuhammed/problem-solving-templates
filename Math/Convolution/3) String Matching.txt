@@ -1,0 +1,242 @@
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (1) String matching using FFT                         */
+// Time Complexity: O(26 * n * log2(n))
+// what can we do:
+// (1) match a pattern with wild cards,
+// (2) match a a pattern with at most k different characters,
+// (3) get a match with the min hamming distance (different characters).
+
+
+
+void fft(vector < cld > &f, bool inv)
+{
+    ll n = (ll)f.size();
+
+    // Bit-Reversed order
+    for(ll i = 1, j = 0; i < n; i++)
+    {
+        ll bit = (n >> 1ll); // msb value, because
+
+        // ++j (+1 from msb (left not right))
+        for( ; j & bit; bit >>= 1ll) j ^= bit; // (1 --> 0)
+        j ^= bit; // (0 --> 1)
+
+        if(i < j) swap(f[i], f[j]);
+    }
+
+    for(ll len = 2; len <= n; len <<= 1ll) // len is the length of each polynomial in the curr level (igonre 1), or the number of points in the curr level.
+    {
+        cld w1(cos(2.0 * pi * 1.0 / len), (inv ? -1 : 1) * sin(2.0 * pi * 1.0 / len)); // angle = (2 * pi * k / n)
+
+        for(ll i = 0; i < n; i += len) // the i'th polynomial
+        {
+            cld w(1); // w0 = 1
+
+            for(ll j = 0; j < len / 2; j++) // the j'th element in the i'th polynomial
+            {
+                cld u = f[i + j], v = w * f[i + j + len/2]; // even, odd
+
+                f[i + j] = u + v, f[i + j + len/2] = u - v;
+
+                w *= w1;
+            }
+        }
+    }
+
+    if(inv) for(auto &i : f) i /= n;
+
+}
+
+vector < ll > mul_poly(vector < ll > &a, vector < ll > &b)
+{
+    if(a.empty() || b.empty()) return {};
+
+    vector < cld > fa(all(a)), fb(all(b));
+
+    ll n = 1;
+    while(n < ((ll)a.size() + (ll)b.size())) n <<= 1ll;
+    fa.resize(n); fb.resize(n);
+
+    fft(fa, 0), fft(fb, 0); // step 1 & 2
+
+    for(ll i = 0; i < n; i++) fa[i] *= fb[i]; // step 3
+
+    fft(fa, 1); // step 4
+
+    vector < ll > ans(n);
+    for(ll i = 0; i < n; i++) ans[i] = (ll)roundl(fa[i].real());
+
+    return ans;
+}
+
+// .....
+
+const char _ref = 'a';
+
+void string_match(string s, string t, ll k = 3)
+{
+    ll n = (ll)s.size(), m = (ll)t.size();
+
+    vector < ll > p1(n), p2(m), ans(n);
+
+    ll sh = m - 1;
+    for(ll i = 0; i < 26; i++) // O(26) will cause TLE!
+    {
+        // if(!(i == 'a' - _ref || i == 'c' - _ref || i == 'g' - _ref || i == 't' - _ref)) continue;
+
+        for(ll j = 0; j < n; j++) p1[j] = ((ll)(s[j] - _ref) == i);
+        for(ll j = 0; j < m; j++) p2[-j + sh] = ((ll)(t[j] - _ref) == i);
+
+        vector < ll > p3 = mul_poly(p1, p2);
+
+        for(ll j = 0; j < n; j++) ans[j] += p3[j + sh];
+    }
+
+    // what is the number of matching characters, if i start at index i
+    for(ll i = 0; i < n; i++) cout << ans[i] << ' ';
+    cout << endl;
+
+    // the number of substrings with at most k different characters
+    ll cnt = 0;
+    for(ll i = 0; i <= n - m; i++) cnt += (ans[i] >= m - k);
+    cout << cnt << endl;
+
+    // the min hamming distance (min different characters)
+    ll mn = m;
+    for(ll i = 0; i <= n - m; i++) mn = min(mn, m - ans[i]);
+    cout << mn << endl;
+
+
+    return;
+}
+
+// .....
+
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (2) String matching with wild cards                         */
+// Time Complexity: O(n * log2(n))
+
+void fft(vector < cld > &f, bool inv)
+{
+    ll n = (ll)f.size();
+
+    // Bit-Reversed order
+    for(ll i = 1, j = 0; i < n; i++)
+    {
+        ll bit = (n >> 1ll);
+
+        // ++j (+1 from msb (left not right))
+        for( ; j & bit; bit >>= 1ll) j ^= bit; // (1 --> 0)
+        j ^= bit; // (0 --> 1)
+
+        if(i < j) swap(f[i], f[j]);
+    }
+
+    for(ll len = 2; len <= n; len <<= 1ll) // len is the length of each polynomial in the curr level (igonre 1)
+    {
+        cld w1(cos(2.0 * pi * 1.0 / len), (inv ? -1 : 1) * sin(2.0 * pi * 1.0 / len)); // angle = (2 * pi * k / n)
+
+        for(ll i = 0; i < n; i += len) // the i'th polynomial
+        {
+            cld w(1); // w0 = 1
+
+            for(ll j = 0; j < len / 2; j++) // the j'th element in the i'th polynomial
+            {
+                cld u = f[i + j], v = w * f[i + j + len/2]; // even, odd
+
+                f[i + j] = u + v, f[i + j + len/2] = u - v;
+
+                w *= w1;
+            }
+        }
+    }
+
+    if(inv) for(auto &i : f) i /= n;
+
+}
+
+vector < cld > mul_poly(vector < cld > &a, vector < cld > &b, ll limit = oo)
+{
+    if(a.empty() || b.empty()) return {};
+
+    vector < cld > fa(all(a)), fb(all(b));
+
+    ll n = 1;
+    while(n < ((ll)a.size() + (ll)b.size())) n <<= 1ll;
+    fa.resize(n); fb.resize(n);
+
+    fft(fa, 0), fft(fb, 0); // step 1 & 2
+
+    for(ll i = 0; i < n; i++) fa[i] *= fb[i]; // step 3
+
+    fft(fa, 1); // step 4
+
+    return fa;
+}
+
+
+// fft.....
+
+const char _ref = 'a', wild_card = '#';
+const ld eps0 = 5e-4; // If you get a WA you can change the eps lower or higher till you pass
+void count_match(string s, string t)
+{
+    ll n = (ll)s.size(), m = (ll)t.size();
+
+    vector < cld > poly1(n), poly2(m);
+
+    for(ll i = 0; i < n; i++)
+    {
+        ld angle = 2 * pi * (ll)(s[i] - _ref) / 26;
+        poly1[i] = cld(cos(angle), sin(angle));
+    }
+
+    for(ll i = 0; i < m; i++)
+    {
+        if(t[m - 1 - i] == wild_card) // Wild Card
+        {
+            poly2[i] = cld(0, 0);
+        }
+        else
+        {
+            ld angle = 2 * pi * (ll)(t[m - 1 - i] - 'a') / 26;
+            poly2[i] = cld(cos(angle), -sin(angle));
+        }
+    }
+
+    vector < cld > ans = mul_poly(poly1, poly2);
+
+    ll wild_cnt = (ll)count(all(t), wild_card);
+
+    ll tot = 0;
+    vector < ll > pos;
+    for(ll i = 0; i < n; i++)
+    {
+        if(fabsl(ans[m - 1 + i].real() - (m - wild_cnt)) < eps0 && fabsl(ans[m - 1 + i].imag()) < eps0)
+        {
+            tot++;
+            pos.push_back(i);
+        }
+    }
+
+    cout << tot << endl;
+    for(auto & p : pos) cout << p << ' ';
+    cout << endl;
+
+    return;
+}
+
+// .....
+
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

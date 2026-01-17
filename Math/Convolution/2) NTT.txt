@@ -1,0 +1,650 @@
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                         (1) NTT (Number Theoretic Transform) - mine (slower)                         */
+// iterative NTT algorithm with mod for polynomial multiplication using integers in O(n * log2(n)).
+// similar to FFT, but it works with integers only (using modular arithmetics), so it's safe from precision errors.
+// works for special mods only (c * 2^k + 1, and k need to be big 15-25).
+// refernce: {a0, a1 * x, ...}
+// + Raise a Polynomial to a power of n, with a limit, in O(n * log2(n) * log2(n)).
+
+
+const ll special_mod = 998244353, primitive_root = 3;
+// 998244353 = (119 << 23) + 1 --> (size <= 8e6)
+// For p < 2^30 there is also e.g. 5 << 25, 7 << 26, 479 << 21 and 483 << 21 (same root). The last two are > 10^9.
+
+// .....
+
+// Modular(Binary) Exponentiation: Quick calculation of ((x^n) mod m) in O(log(n))
+ll mod_exp(ll x, ll n, ll m = mod)
+{
+    ll res = 1;
+    while(n)
+    {
+        if (n % 2) res = (((res % m) * (x % m)) % m);
+        x = (((x % m) * (x % m)) % m);
+        n /= 2;
+    }
+    return res;
+}
+
+// Modular Arithmetic operations
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_inv(ll x, ll m = mod){ return mod_exp(x , m - 2, m); } // Fermat’s little theorem (m is a prime number)
+ll mod_div(ll x, ll y, ll m = mod){ return mod_mul(x, mod_inv(y, m), m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); while(z < 0) z += m; z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+
+// .....
+
+// get the Primitive root of the mod.
+ll generate_primitive_root(ll m = special_mod)
+{
+    vector < ll > fact;
+    ll phi = m - 1,  n = phi;
+    for(ll i = 2; i * i <= n; i++)
+    {
+        if(n % i) continue;
+        fact.push_back (i);
+        while (n % i == 0) n /= i;
+    }
+    if(n > 1) fact.push_back(n);
+
+    for(ll res = 2; res <= m; res++)
+    {
+        bool ok = true;
+        for(size_t i = 0; i < (ll)fact.size() && ok; i++) ok &= mod_exp(res, phi / fact[i], m) != 1ll;
+        if(ok) return res;
+    }
+    return -1;
+}
+
+// .....
+
+void ntt(vector < ll > &f, bool inv)
+{
+    ll n = (ll)f.size();
+
+    // Bit-Reversed order
+    for(ll i = 1, j = 0; i < n; i++)
+    {
+        ll bit = (n >> 1ll);
+
+        // ++j (+1 from msb (left not right))
+        for( ; j & bit; bit >>= 1ll) j ^= bit; // (1 --> 0)
+        j ^= bit; // (0 --> 1)
+
+        if(i < j) swap(f[i], f[j]);
+    }
+
+    for(ll len = 2; len <= n; len <<= 1ll) // len is the length of each polynomial in the level (igonre 1), or the number of points
+    {
+        ll step = mod_exp(primitive_root, special_mod / len, special_mod); // i need len points
+        ll g_step = (inv ? mod_inv(step, special_mod) : step);
+
+        for(ll i = 0; i < n; i += len) // the i'th polynomial
+        {
+            ll g = 1; // g^(0)
+
+            for(ll j = 0; j < len / 2; j++) // the j'th element in the i'th polynomial
+            {
+                ll u = f[i + j], v = mod_mul(g, f[i + j + len/2], special_mod);
+
+                f[i + j] = mod_add(u, v, special_mod);
+                f[i + j + len/2] = mod_sub(u, v, special_mod);
+
+                g = mod_mul(g, g_step, special_mod);
+            }
+
+        }
+    }
+
+    if(inv)
+    {
+        ll c = mod_inv(n, special_mod);
+        for(auto &i : f) i = mod_mul(i, c, special_mod);
+    }
+
+}
+
+vector < ll > mul_poly(vector < ll > &a, vector < ll > &b, ll limit = oo)
+{
+    if(a.empty() || b.empty()) return {};
+
+    vector < ll > fa(all(a)), fb(all(b));
+
+    ll n = 1;
+    while(n < ((ll)a.size() + (ll)b.size())) n <<= 1ll;
+    fa.resize(n); fb.resize(n);
+
+    ntt(fa, 0), ntt(fb, 0); // step 1 & 2
+
+    for(ll i = 0; i < n; i++) fa[i] = mod_mul(fa[i], fb[i], special_mod); // step 3
+
+    ntt(fa, 1); // step 4
+
+    fa.resize(min(n, limit + 1));
+
+    return fa;
+}
+
+vector < ll > exp_poly(vector < ll > a, ll k, ll limit = (ll)1e6)
+{
+   if(a.empty()) return {};
+   if(k == 0) return {1};
+   if(k == 1) return a;
+   if(k == 2) return mul_poly(a, a, limit);
+
+    vector < ll > ans = {1};
+    while(k)
+    {
+        if(k & 1ll) ans = mul_poly(ans, a, limit);
+        a = mul_poly(a, a, limit);
+        k >>= 1;
+    }
+    return ans;
+}
+
+vector < ll > fast_exp_poly(vector < ll > &a, ll k, ll limit = (ll)1e6)
+{
+    if(a.empty()) return {};
+
+    vector < ll > fa(all(a));
+
+    ll n = 1;
+    while(n < (ll)a.size() * k) n <<= 1ll;
+    fa.resize(n);
+
+    assert(n <= (ll)1e7); // important
+
+    ntt(fa, 0);
+
+    for(ll i = 0; i < n; i++) fa[i] = mod_exp(fa[i], k, special_mod);
+
+    ntt(fa, 1);
+
+    fa.resize(min(n, limit + 1));
+
+    return fa;
+}
+
+// .....
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (2) NTT (Number Theoretic Transform) - not mine (faster)                         */
+// iterative NTT algorithm with mod for polynomial multiplication using integers in O(n * log2(n)).
+// similar to FFT, but it works with integers only (using modular arithmetics), so it's safe from precision errors.
+// works for special mods only (c * 2^k + 1, and k need to be big 15-25).
+// refernce: {a0, a1 * x, ...}
+// + Raise a Polynomial to a power of n, with a limit, in O(n * log2(n) * log2(n)).
+
+
+const ll special_mod = 998244353, primitive_root = 3;
+// 998244353 = (119 << 23) + 1 --> (size <= 1e6)
+// For p < 2^30 there is also e.g. 5 << 25, 7 << 26, 479 << 21 and 483 << 21 (same root). The last two are > 10^9.
+
+// .....
+
+// Modular(Binary) Exponentiation: Quick calculation of ((x^n) mod m) in O(log(n))
+ll mod_exp(ll x, ll n, ll m = mod)
+{
+    ll res = 1;
+    while(n)
+    {
+        if (n % 2) res = (((res % m) * (x % m)) % m);
+        x = (((x % m) * (x % m)) % m);
+        n /= 2;
+    }
+    return res;
+}
+
+// Modular Arithmetic operations
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_inv(ll x, ll m = mod){ return mod_exp(x , m - 2, m); } // Fermat’s little theorem (m is a prime number)
+ll mod_div(ll x, ll y, ll m = mod){ return mod_mul(x, mod_inv(y, m), m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); while(z < 0) z += m; z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+
+// .....
+
+// get the Primitive root of the mod.
+ll generate_primitive_root(ll m = special_mod)
+{
+    vector < ll > fact;
+    ll phi = m - 1,  n = phi;
+    for(ll i = 2; i * i <= n; i++)
+    {
+        if(n % i) continue;
+        fact.push_back (i);
+        while (n % i == 0) n /= i;
+    }
+    if(n > 1) fact.push_back (n);
+
+    for(ll res = 2; res <= m; res++)
+    {
+        bool ok = true;
+        for(size_t i = 0; i < (ll)fact.size() && ok; i++) ok &= mod_exp(res, phi / fact[i], m) != 1ll;
+        if(ok) return res;
+    }
+    return -1;
+}
+
+// .....
+
+void ntt(vector < ll > &a)
+{
+    ll n = (ll)a.size(), L = 31 - __builtin_clz(n);
+    static vector < ll > rt(2, 1);                   // erase the static if you want to use two moduli.
+    for(static ll k = 2, s = 2; k < n; k *= 2, s++)  // erase the static if you want to use two moduli;
+    {
+        rt.resize(n);
+        ll z[] = {1, mod_exp(primitive_root, special_mod >> s, special_mod)};
+        for(ll i = k; i < 2 * k; i++) rt[i] = rt[i / 2] * z[i & 1] % special_mod;
+    }
+
+    vector < ll > rev(n);
+
+    for(ll i = 0; i < n; i++) rev[i] = (rev[i / 2] | (i & 1) << L) / 2;
+
+    for(ll i = 0; i < n; i++) if(i < rev[i]) swap(a[i], a[rev[i]]);
+
+    for(ll k = 1; k < n; k *= 2)
+    {
+        for(ll i = 0; i < n; i += 2*k)
+        {
+            for(ll j = 0; j < k; j++)
+            {
+                ll z = rt[j + k] * a[i + j + k] % special_mod, &ai = a[i + j];
+                a[i + j + k] = ai - z + (z > ai ? special_mod : 0);
+                ai += (ai + z >= special_mod ? z - special_mod : z);
+            }
+        }
+    }
+
+}
+
+vector < ll > mul_poly(vector < ll > &a, vector < ll > &b, ll limit = oo)
+{
+    if(a.empty() || b.empty()) return {};
+
+    ll s = (ll)a.size() + (ll)b.size() - 1, B = 32 - __builtin_clz(s), n = (1 << B);
+
+    ll inv = mod_inv(n, special_mod);
+
+    vector < ll > L(a), R(b), out(n);
+    L.resize(n), R.resize(n);
+
+    ntt(L), ntt(R);
+
+    for(ll i = 0; i < n; i++) out[(-i & (n - 1))] = (ll)L[i] * R[i] % special_mod * inv % special_mod;
+
+    ntt(out);
+    out.resize(min(n, limit + 1));
+
+    return out;
+}
+
+vector < ll > exp_poly(vector < ll > a, ll k, ll limit = (ll)1e6)
+{
+    if(a.empty()) return {};
+    if(k == 0) return {1};
+    if(k == 1) return a;
+    if(k == 2) return mul_poly(a, a, limit);
+
+    vector < ll > ans = {1};
+    while(k)
+    {
+        if(k & 1ll) ans = mul_poly(ans, a, limit);
+        a = mul_poly(a, a, limit);
+        k >>= 1;
+    }
+    return ans;
+}
+
+// .....
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                         (3) Fast NTT (Number Theoretic Transform) - not mine (faster)                         */
+// works for n, m <= 2^24
+// Benchmark, no extra padding, ...
+// if(n <= 64), then switch to a fast O(n^(2)) polynomial multiplication algorithm.
+
+
+const int special_mod = 998244353, primitive_root = 3, lim = 64;
+
+// .....
+
+int mod_exp(int b, int e, ll m = mod)
+{
+    int res = 1;
+    for(; e; b = (ll) b * b % m, e /= 2) if(e & 1) res = (ll) res * b % m;
+    return res;
+}
+
+int mod_div_2(int x)
+{
+    if(x >= special_mod) x -= special_mod;
+    if(x & 1) x += special_mod;
+    return x/2;
+}
+
+vector < int > mod_poly(vector < int > &a, int x)
+{
+    int n = a.size();
+    int c = mod_exp(primitive_root, x, special_mod);
+
+    vector < int > out(n/2);
+    for(int i = 0; i < n/2; i++)  out[i] = (a[i] + (ll) c * a[i + n/2]) % special_mod;
+
+    return out;
+}
+
+pair < vector < int >, vector < int > > mod_poly2(vector < int > &a, int x)
+{
+    int n = a.size();
+    int c = mod_exp(primitive_root, x, special_mod);
+
+    vector < int > a_minus(n/2), a_plus(n/2);
+
+    for(int i = 0; i < n/2; i++)
+    {
+        int tmp = (ll) c * a[i + n / 2] % special_mod;
+        int m = a[i] + tmp;
+        a_minus[i] = (m >= special_mod ? m - special_mod : m);
+        int p = a[i] - tmp;
+        a_plus[i] = (p < 0 ? p + special_mod : p);
+    }
+
+    return {a_minus, a_plus};
+}
+
+
+vector < int > fast_ntt_poly_mul(vector < int > &a, vector < int> &b, int x)
+{
+    int n = a.size();
+
+    if((n <= lim) || (n & 1))
+    {
+        vector < ull > ans2(2*n);
+        for(int i = 0; i < n; i++)
+        {
+            for(int j = 0; j < n; j++) ans2[i + j] += (ll) a[i] * b[j];
+
+            if((i & 15) == 15) for(int j = i + 1; j < i + n; j++) ans2[j] %= special_mod;
+        }
+
+        vector < int > ans(n);
+        int c = mod_exp(primitive_root, x, special_mod);
+        for(int i = 0; i < n; i++) ans[i] = (ans2[i] + c * (ans2[i + n] % special_mod)) % special_mod;
+
+        return ans;
+    }
+
+    int x1 = x/2;
+    int x2 = (x1 + special_mod/2) % (special_mod - 1);
+
+    vector < int > ans_minus, ans_plus;
+
+    {
+        auto [a_minus, a_plus] = mod_poly2(a, x1);
+        auto [b_minus, b_plus] = mod_poly2(b, x1);
+        ans_minus = fast_ntt_poly_mul(a_minus, b_minus, x1);
+        ans_plus = fast_ntt_poly_mul(a_plus, b_plus, x2);
+    }
+
+    int sqrtc_inv = mod_exp(primitive_root, special_mod - 1 - x1, special_mod);
+    int two_sqrtc_inv = mod_div_2(sqrtc_inv);
+
+    vector < int > ans(n);
+    for(int i = 0; i < n/2; i++) ans[i] = mod_div_2(ans_minus[i] + ans_plus[i]);
+    for(int i = 0; i < n/2; i++) ans[i + n/2] = (ll) (ans_minus[i] - ans_plus[i] + special_mod) * two_sqrtc_inv % special_mod;
+
+    return ans;
+}
+
+vector < int > fast_ntt_poly_mul(vector < int > &a, vector < int > &b)
+{
+    int n1 = a.size(), n2 = b.size();
+    int len = n1 + n2 - 1;
+
+    int x = 1;
+    while((lim << x) < len) ++x;
+    int y = ((len - 1) >> x) + 1;
+    int n = (y << x);
+
+    a.resize(n); b.resize(n);
+
+    vector < int > ans = fast_ntt_poly_mul(a, b, 0);
+
+    a.resize(n1); b.resize(n2); ans.resize(len);
+
+    return ans;
+}
+
+// .....
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (4) NTT (Number Theoretic Transform) - not mine                         */
+// iterative NTT algorithm with mod for polynomial multiplication using integers in O(n * log2(n)).
+// similar to FFT, but it works with integers only (using modular arithmetics), so it's safe from precision errors.
+// works for any mod using CRT.
+// refernce: {a0, a1 * x, ...}
+// + Raise a Polynomial to a power of n, with a limit in O(n * log2(n) * log2(n)).
+// https://ideone.com/hl951K
+// https://judge.yosupo.jp/problem/convolution_mod_1000000007
+// https://codeforces.com/group/Rilx5irOux/contest/620529/problem/M
+
+const ll special_mod = (ll)1e9 + 7, primitive_root = 5;
+
+const LL M1 = 167772161, root1 = 3;
+const LL M2 = 469762049, root2 = 3;
+const LL M3 = 1224736769, root3 = 3;
+LL M12 = M1 * M2;
+LL M123 = M1 * M2 * M3;
+
+// .....
+
+// Modular(Binary) Exponentiation: Quick calculation of ((x^n) mod m) in O(log(n))
+ll mod_exp(ll x, ll n, ll m = mod)
+{
+    ll res = 1;
+    while(n)
+    {
+        if (n % 2) res = (((res % m) * (x % m)) % m);
+        x = (((x % m) * (x % m)) % m);
+        n /= 2;
+    }
+    return res;
+}
+
+// Modular Arithmetic operations
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_inv(ll x, ll m = mod){ return mod_exp(x , m - 2, m); } // Fermat’s little theorem (m is a prime number)
+ll mod_div(ll x, ll y, ll m = mod){ return mod_mul(x, mod_inv(y, m), m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); while(z < 0) z += m; z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+
+// .....
+
+// get the Primitive root of the mod.
+ll generate_primitive_root(ll m = special_mod)
+{
+    vector < ll > fact;
+    ll phi = m - 1,  n = phi;
+    for(ll i = 2; i * i <= n; i++)
+    {
+        if(n % i) continue;
+        fact.push_back (i);
+        while (n % i == 0) n /= i;
+    }
+    if(n > 1) fact.push_back (n);
+
+    for(ll res = 2; res <= m; res++)
+    {
+        bool ok = true;
+        for(size_t i = 0; i < (ll)fact.size() && ok; i++) ok &= mod_exp(res, phi / fact[i], m) != 1ll;
+        if(ok) return res;
+    }
+    return -1;
+}
+
+// .....
+
+void ntt(vector < ll > &f, bool inv, ll mod, ll root)
+{
+    ll n = (ll)f.size();
+
+    // Bit-Reversed order
+    for(ll i = 1, j = 0; i < n; i++)
+    {
+        ll bit = (n >> 1ll);
+
+        // ++j (+1 from msb (left not right))
+        for( ; j & bit; bit >>= 1ll) j ^= bit; // (1 --> 0)
+        j ^= bit; // (0 --> 1)
+
+        if(i < j) swap(f[i], f[j]);
+    }
+
+    for(ll len = 2; len <= n; len <<= 1ll) // len is the length of each polynomial in the level (igonre 1), or the number of points
+    {
+        ll step = mod_exp(root, mod / len, mod); // i need len points
+        ll g_step = (inv ? mod_inv(step, mod) : step);
+
+        for(ll i = 0; i < n; i += len) // the i'th polynomial
+        {
+            ll g = 1; // g^(0)
+
+            for(ll j = 0; j < len / 2; j++) // the j'th element in the i'th polynomial
+            {
+                ll u = f[i + j], v = mod_mul(g, f[i + j + len/2], mod);
+
+                f[i + j] = mod_add(u, v, mod);
+                f[i + j + len/2] = mod_sub(u, v, mod);
+
+                g = mod_mul(g, g_step, mod);
+            }
+
+        }
+    }
+
+    if(inv)
+    {
+        ll c = mod_inv(n, mod);
+        for(auto &i : f) i = mod_mul(i, c, mod);
+    }
+
+}
+
+vector < ll > mul_poly(vector < ll > &a, vector < ll > &b, ll mod = special_mod, ll root = primitive_root)
+{
+    if(a.empty() || b.empty()) return {};
+
+    vector < ll > fa(all(a)), fb(all(b));
+
+    ll n = 1;
+    while(n < ((ll)a.size() + (ll)b.size())) n <<= 1ll;
+    fa.resize(n); fb.resize(n);
+
+    ntt(fa, 0, mod, root), ntt(fb, 0, mod, root); // step 1 & 2
+
+    for(ll i = 0; i < n; i++) fa[i] = mod_mul(fa[i], fb[i], mod); // step 3
+
+    ntt(fa, 1, mod, root); // step 4
+
+    fa.resize(n);
+
+    return fa;
+}
+
+vector < ll > CRT(vector < ll > &p1, vector < ll > &p2, vector < ll > p3, ll mod = special_mod)
+{
+    ll n = p1.size();
+    vector < ll > res(n);
+
+    ll inv_m1_mod_m2 = mod_inv(M1, M2);
+    ll inv_m12_mod_m3 = mod_inv(mod_mul(M1, M2, M3), M3);
+
+    for(ll i = 0; i < n; i++)
+    {
+        LL x1 = p1[i];
+        LL x2 = ((p2[i] - x1 + M2) * inv_m1_mod_m2) % M2;
+        LL x3 = ((p3[i] - (x1 + M1 * x2) % M3 + M3) * inv_m12_mod_m3) % M3;
+        LL result = (x1 + M1 * x2 + M12 * x3) % M123;
+        res[i] = result % mod;
+    }
+
+    return res;
+}
+
+vector < ll > mul_poly_any_mod(vector < ll > &a, vector < ll > &b, ll mod)
+{
+    vector < ll > p1 = mul_poly(a, b, M1, root1);
+    vector < ll > p2 = mul_poly(a, b, M2, root2);
+    vector < ll > p3 = mul_poly(a, b, M3, root3);
+    return CRT(p1, p2, p3, mod);
+}
+
+// .....
+
+
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// shift a polynomial by k
+
+
+
+const ll N = (ll)1e5 + 5;
+ll fact[N], inv_fact[N];
+void pre_compute(ll m = mod)
+{
+    // pre-process n! in O(N)
+    fact[0] = 1;
+    for (ll i = 1; i < N; i++)
+        fact[i] = mod_mul(i, fact[i - 1], m);
+
+    // pre-process (n!)^-1 in O(N + log(mod))
+    inv_fact[N - 1] = mod_inv(fact[N - 1], m);
+    for(ll i = N - 2; i >= 0; i--)
+        inv_fact[i] = mod_mul((i + 1), inv_fact[i + 1], m);
+}
+
+vector < ll > shift_poly(vector < ll > &p, ll k)
+{
+    k %= special_mod; k += special_mod; k %= special_mod;
+
+    ll n = (ll)p.size();
+    vector < ll > p1(n), p2(n);
+    for(ll i = 0; i < n; i++) p1[i] = mod_mul(p[i], fact[i], special_mod);
+
+    ll curr = 1;
+    for(ll i = 0; i < n; i++)
+        p2[n - i - 1] = mod_mul(mod_exp(k, i, special_mod), inv_fact[i], special_mod);
+
+    vector < ll > res = mul_poly(p1, p2);
+
+    vector < ll > ans;
+    for(ll i = n - 1; i < (ll)res.size(); i++)
+        ans.push_back(mod_mul(res[i], inv_fact[i - (n - 1)], special_mod));
+
+    return ans;
+}
+
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

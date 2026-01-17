@@ -1,0 +1,220 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cld v, cld w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cld v, cld w) { return v.X*w.Y - v.Y*w.X; }
+
+// computes the orientation of the turn from point a → b → c
+// the sign of the cross product tells you the direction of the turn (orientation) between two vectors.
+// orient(a, b, c) = orient(b, c, a) = orient(c, a, b)
+// orient(a, b, c) > 0  left turn (c is left to ab)
+// orient(a, b, c) = 0  collinear (a, b, c lie on a line)
+// orient(a, b, c) < 0  right turn (c is right to ab)
+T orient(cld a, cld b, cld c) { return cross(b - a, c - a); } // ab cross ac
+
+// check if the point p lies inside the disk with diameter ab
+bool inDisk(cld a, cld b, cld p) { return dot(a - p, b - p) <= eps; }
+
+// check if the point p lies on the segment ab
+bool onSegment(cld a, cld b, cld p) { return !sgn(orient(a, b, p)) && inDisk(a, b, p); }
+
+
+
+/*                              Polygon                              */
+// convex Polygon (all internal angles < 180°) vs Concave Polygon (at least one internal angle > 180°)
+// simple Polygon (edges do not cross) vs complex Polygon (Self-intersecting) (edges cross over)
+// the minimum non-degenerate triangle area always formed by three consecutive vertices in a strictly convex polygon
+//
+
+
+
+// compute the area of a triangle given it's points: 1/2 * |a| * |b| * sin(θ)
+ld triangleArea(cld a, cld b, cld c) { return fabsl(cross(b - a, c - a)) / 2.0L; }
+
+// compute thea area of a traingle given two lengths and the angle between them
+ld triangleArea1(ld a, ld b, ld theta)
+{
+    return 0.5L * a * b * sinl(theta);
+}
+
+// compute thea area of a traingle given it's lengths
+ld triangleArea2(ld a, ld b, ld c)
+{
+    ld s = (a + b + c) / 2.0L;
+    return sqrtl(s * (s - a) * (s - b) * (s - c));
+}
+
+// compute the area of the circle that passes throuth the three points of the triangle
+ld circumCircle(ld a, ld b, ld c)
+{
+    ld r = (a * b * c) / (4.0L * triangleArea2(a, b, c));
+    return r;
+}
+
+// compote the area of the incircle (inside triangle that passes through the 3 angle bisectors, center of the triangle)
+ld inCircle(ld a, ld b, ld c)
+{
+    ld s = (a + b + c) / 2.0L;
+    ld r = triangleArea2(a, b, c) / s;
+    return r;
+}
+
+// compute the area of a polygon (vertices must be in order)
+ld polygonArea(vector < cld > p)
+{
+    ll n = (ll)p.size();
+    ld area = 0.0L;
+    for(ll i = 0; i < n; i++)
+        area += cross(p[i], p[(i + 1) % n]);
+
+    return fabsl(area)/2.0; // absolute area
+    // vertices are in anti-clockwise (positive),or clockwise (negative) order.
+}
+
+// true if P at least as high as A (blue part)
+bool above(cld a, cld p) { return sgn(p.Y - a.Y) >= 0; }
+
+// check if [PQ] crosses ray from a
+bool crossesRay(cld a, cld p, cld q) { return ((above(a, q) - above(a, p)) * orient(a, p, q)) > 0; }
+
+// check if a point in the polygon or not
+// if strict = true, returns false when point a is on the boundary
+bool inPolygon(vector < cT > &p, cld a, bool strict = true) // O(n)
+{
+    ll n = p.size(), numCrossings = 0;
+    for(ll i = 0; i < n; i++)
+    {
+        if(onSegment(p[i], p[(i + 1) % n], a)) return !strict;
+        numCrossings += crossesRay(a, p[i], p[(i + 1) % n]);
+    }
+    return (numCrossings & 1ll); // inside if odd number of crossings
+}
+
+// p is in CCW order
+// IN: -1, ON: 0, OUT: 1
+ll inPolygon2(vector < cld > &p, cld a) // O(log2(n))
+{
+    ll n = (ll)p.size();
+
+    if(n < 3 || sgn(orient(p[0], p[1], a)) < 0 || sgn(orient(p[0], p[n - 1], a)) > 0) return 1;
+
+    ll l = 1, r = n - 2, mid;
+    while(l < r) // ... t t f f...
+    {
+        mid = l + (r - l + 1)/2;
+        if(sgn(orient(p[0], p[mid], a)) > 0) l = mid;
+        else r = mid - 1;
+    }
+
+    ll k = sgn(orient(p[l], p[l + 1], a));
+    if(k < 1) return -k;
+    if(l == 1 && sgn(orient(p[0], p[1], a)) == 0) return 0;
+    if(l + 1 == n - 1 && sgn(orient(p[0], p[n - 1], a)) == 0) return 0;
+    return -1;
+}
+
+// check if a point on the polygon
+bool onPolygon(vector <cld> p, cld a)
+{
+    ll n = p.size();
+    for(ll i = 0; i < n; i++) if(onSegment(p[i], p[(i + 1) % n], a)) return 1;
+    return 0;
+}
+
+// check if the polygon is convex or not
+bool isConvex(vector < cld > p)
+{
+    ll n = (ll)p.size();
+    bool hasPos = false, hasNeg = false;
+    for(ll i = 0; i < n; i++)
+    {
+        ll o = orient(p[i], p[(i + 1) % n], p[(i + 2) % n]);
+        if(o > 0) hasPos = true;
+        if(o < 0) hasNeg = true;
+    }
+    return !(hasPos && hasNeg);
+}
+
+// computes the volume of a regular pyramid with an n-gon base and all edges equal to s
+ld vol(ll n, ld s)
+{
+    ld R = s / (2.0L * sin(pi / n));
+    ld r = sqrt(R * R - s * s / 4.0L);
+    ld h = sqrt(s * s - R * R);
+
+    return s * r * h * n / 6.0L;
+}
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// given n segments, where the max length of a segment is c
+// return the minimum area of a nondegenerate triangle using 3 segments from them
+
+// compute thea area of a traingle given it's lengths
+ld triangleArea(ld a, ld b, ld c)
+{
+    ld s = (a + b + c) / 2.0L;
+    return 1.0L * s * (s - a) * (s - b) * (s - c);
+}
+
+const ll N = (ll)1e5 + 5;
+ll n, c; // n (the number of segments), c (the max length of a segment)
+bitset < N > f;
+
+ld minTriangleArea()
+{
+    while(!f[c]) c--;
+
+    ld res = 1e100;
+
+    ll a = 1;
+    // triples are (a, b, c) (a < b < c)
+    for(ll d = 1; 2 * d <= c; d++) // fix the difference between b and c
+    {
+        while(a <= d || !f[a]) a++; // find the first a > d
+
+        auto g = f & (f >> d);
+
+        ll b = g._Find_next(a); // find the first b > a s.t. b and b + d is in the array
+
+        if(b <= c) res = min(res, triangleArea(a, b, b + d));
+    }
+
+    if(res < 1e100) return sqrtl(res);
+
+    return -1;
+}
+
+void solve()
+{
+
+    cin >> n >> c;
+    f.reset();
+    for(ll i = 0; i < n; i++)
+    {
+        ll x; cin >> x;
+        f[x] = 1;
+    }
+
+
+    cout << minTriangleArea() << endl;
+
+    return;
+}
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

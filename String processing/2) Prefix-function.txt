@@ -1,0 +1,99 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*              Prefix/Failure function              */
+// calcuate the pi-values for all string in O(n).
+// pi[i] is the length of the longest suffix substring ending at s[...i] which is also a prefix of s[0..] --> (s[0 : pi[i][ == s]i - pi[i] : i]).
+// taking the length i for index i is meaning less as the prefix of a complete string is always suffix of itself, so pi[i] <= i (0-indexed).
+// usefull for string matching (s = s + '#' + t), KMP, u can replace the string with a vector of numbers, ...
+// s + '?' + t, t + '?' + s, rev(s) + '?' + t, rev(t) + '?' + s, ...
+// https://cp-algorithms.com/string/prefix-function.html
+
+
+// calculate the pi-array in O(n).
+vector < ll > pre_function(string s)
+{
+    ll n = (ll)s.size();
+    vector < ll > pi(n, 0);
+
+    for(ll i = 1; i < n; i++)
+    {
+        // j = pi[j - 1], helps us to jump back to the next smaller prefix that could match,
+        // avoiding redundant comparisons (the next smaller prefix/suffix), (p[i] + 1 <= p[i + 1]).
+        ll j = pi[i - 1]; // j or len
+        while(j > 0 && s[i] != s[j]) j = pi[j - 1];
+        if(s[i] == s[j]) j++;
+        pi[i] = j;
+    }
+
+    return pi;
+}
+
+
+// convert pi-array to z-array in O(n).
+vector < ll > pi_to_z(vector < ll > pi) { }
+
+
+// find the patterns of string t(m) in string s(n) in O(n).
+vector < ll > get_matches(string s, string t)
+{
+    ll n = (ll)s.size(), m = (ll)t.size();
+    t = t + '#' + s;
+    vector < ll > pi = pre_function(t);
+
+    vector < ll > matches;
+    for(ll i = m + 1; i < n + m + 1; i++)
+    {
+        if(pi[i] == m)
+        {
+            matches.push_back(i - (m + 1) - m + 1);
+        }
+
+    }
+
+    return matches;
+}
+
+
+// find the max length suffix palindrome substring using pi-array in O(n).
+ll max_right_palindrome(string s)
+{
+    ll n = (ll)s.size();
+
+    string k = s;
+    reverse(all(k));
+    k = k + '#' + s;
+
+    vector < ll > pi = pre_function(k);
+
+    return pi.back();
+}
+
+
+// find the max length prefix palindrome substring using pi-array in O(n).
+ll max_left_palindrome(string s)
+{
+    ll n = (ll)s.size();
+
+    string k = s;
+    reverse(all(k));
+    k = s + '#' + k;
+
+    vector < ll > pi = pre_function(k);
+
+    return pi.back();
+}
+
+
+// find the number of occurences of each prefix in string s[0..i] in string the same string s, using pi-array in O(n).
+vector < ll > pi = pre_function(s);
+vector < ll > ans(n + 1);
+for(ll i = 0; i < n; i++) ans[pi[i]]++;
+for(ll i = n - 1; i > 0; i--) ans[pi[i-1]] += ans[i];
+for(ll i = 0; i <= n; i++) ans[i]++;
+
+// find the number of occurences of each prefix in string s[0..i] in string t, using pi-array in O(n). // s + '#' + t, i >= n + 1
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

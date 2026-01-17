@@ -1,0 +1,56 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*              KMP(Knuth–Morris–Pratt) algorithm              */
+// string matching algorithm, it's powerful that it's an online algorithm.
+// lsp[i] = pi[i], where lsp means Longest Prefix Suffix (used in KMP).
+// find the patterns of string t in s, using prefix array, in O(n + m) time, O(m) memory,
+// another solution is to use pre_function by making s = t + '#' + s, then run the pre-function, but O(n + m) memory.
+
+
+// calculate the pi-array in O(n).
+vector < ll > pre_function(string s)
+{
+    ll n = (ll)s.size();
+    vector < ll > pi(n, 0);
+
+    for(ll i = 1; i < n; i++)
+    {
+        // j = pi[j - 1], helps us to jump back to the next smaller prefix that could match,
+        // avoiding redundant comparisons (the next smaller prefix/suffix), (p[i] + 1 <= p[i + 1]).
+        ll j = pi[i - 1]; // j or len
+        while(j > 0 && s[i] != s[j]) j = pi[j - 1];
+        if(s[i] == s[j]) j++;
+        pi[i] = j;
+    }
+
+    return pi;
+}
+
+
+// find the patterns of string t(m) in string s(n) in O(n).
+vector < ll > KMP(string s, string t)
+{
+    vector < ll > ans;
+
+    ll n = (ll)s.size(), m = (ll)t.size();
+    vector < ll > pi = pre_function(t);
+
+    for(ll i = 0, j = 0; i < n; i++)
+    {
+        while(j > 0 && s[i] != t[j]) j = pi[j - 1];
+        if(s[i] == t[j]) j++;
+        if(j == m) // pattern found in string s, s]i - m..i] match t[0..m[
+        {
+            ans.push_back(i - m + 1);
+            j = pi[j - 1];
+        }
+        // after each loop we have j = longest common suffix of s[..i] which is also prefix of t[0..]
+    }
+
+    return ans;
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

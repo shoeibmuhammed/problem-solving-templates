@@ -1,0 +1,109 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      Monotonic optimization                                      */
+// DP optimization (by one degree or log) from O(N^3) to O(N^2) or O(N^2 * log2(N)).
+// A techniques that exploit the monotonic properties of a problem
+// (like increasing/decreasing cost functions or decision boundaries) to optimize standard DP solutions,
+// especially to speed up state transitions.
+//
+// divided into 2 types:
+// (1) Binary serach inside the dp function:
+//     when the variant variables inside the loop forms a convex shape.
+//
+// (2) Sliding Window:
+//     when we iterate over a loop [l, r] for optimal point,
+//     but by increasing the outside loop parameter r, the optimal point in [l, r] gets more to the right
+//     (right to the previous values).
+//
+// problems:
+
+
+
+// Balls (https://vjudge.net/problem/HDU-3281)
+
+ll T, B, M;
+
+ll dp[51][1001];
+ll slv(ll b, ll h)
+{
+    if(b == 1 || h == 0) return h;
+
+    ll &ret = dp[b][h];
+    if(ret != -1) return ret;
+    ret = oo;
+
+    // for(ll i = 1; i <= h; i++)
+    //     ret = min(ret, 1ll + max(slv(b - 1, i - 1), slv(b, h - i)));  // increases, decreases
+
+    // second parameter --> {0, 1, 2, ..., h - 1} {h - 1, ..., 2, 1, 0}, and as height increases, the slv increases, and vice versa
+    // so it forms a convex function
+
+    // Binary search trick
+    ll low = 1, high = h, mid;
+    while(low < high) // ... t t f f ..., try both!
+    {
+        mid = low + (high - low + 1)/2;
+        if(slv(b - 1, mid - 1) <= slv(b, h - mid)) low = mid;
+        else high = mid - 1;
+    }
+    // ret = 1ll + max(slv(b - 1, low - 1), slv(b, h - low)); // you can take around 3 points to be sure!
+
+    for(ll i = max(1ll, low - 5); i <= min(h, low + 5); i++)
+        ret = min(ret, 1 + max(slv(b - 1, i - 1), slv(b, h - i))); // increases, decreases
+
+
+    return ret;
+}
+
+
+void solve()
+{
+    cin >> T >> B >> M;
+
+
+    // recursive dp
+    mem(dp, -1);
+    cout << T << ' ' << slv(B, M) << endl;
+
+
+    // iterative dp
+    vector < vector < ll > > dp(B + 1, vector < ll > (M + 1));
+    for(ll b = 1; b <= B; b++)
+    {
+        // Sliding window trick
+        ll i = 1; // This trick works bcos the bigger h is, the right i is.
+
+        for(ll h = 0; h <= M; h++)
+        {
+            ll &ret = dp[b][h];
+
+            if(b == 1 || h == 0)
+            {
+                ret = h;
+                continue;
+            }
+
+            ret = oo;
+
+            for( ; i <= h; i++)
+            {
+                if(dp[b - 1][i - 1] >= dp[b][h - i])
+                {
+                    ret = min(ret, 1ll + max(dp[b - 1][i - 1], dp[b][h - i]));
+                    break;
+                }
+            }
+
+        }
+    }
+
+    cout << T << ' ' << dp[B][M] << endl;
+
+
+
+    return;
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

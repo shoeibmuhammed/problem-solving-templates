@@ -1,0 +1,870 @@
+//.................................................................................................................................................................................
+
+
+
+// Explanation:
+// (1) Relating XOR with Vector Addition
+// 1- consider a cartesian plane with integer coordinates, where the coordinate values can only be 0 or 1,
+// if any of the coordinates, exceeds 1, or goes below 0, we simply take it's value modulo 2.
+// 2- If we represent numbers as vectors, then the result of xor of two numbers is the same of addition their vectors.
+//
+// (2) Vector Basis
+// 1- Independent Vectors: a set of vectors is independent if none of them can be written as the sum (XOR in Z₂) of the others.
+// 2- Basis: a set of vectors is a basis if all vectors in the space can be written uniquely as XOR of these basis vectors.
+// 3- For independent vectors, if you add XOR of some of them to another, they stay independent, and the space doesn’t change, and
+// the set of vectors in the space representable by some linear combination of this independent set stays exactly the same after the change.
+// 4- Coefficients in linear combination must lie in Z₂, So each vector is either included in XOR or not.
+// 5- The basis is actually the smallest sized set such that all other vectors in the vector space are representable
+// by a linear combination of just the element vectors of that set.
+// 6- The basis vectors are independent.
+// 7- If you have fewer independent vectors than basis, some vectors in the space cannot be made.
+// 8- You cannot have more independent vectors than the size of the basis d.
+// 9- For a d−dimensional vector space, it's basis can have at most d vector elements.
+//
+
+
+//....................................................
+
+
+// Tricks:
+// (1) The minimum elements to add to set S(n), such that the set cotainls all s[i]^s[j] is b.distincts() - n
+// https://vjudge.net/problem/CSAcademy-xor-closure
+// (2) If u can make any individual element in a set of elements using the basis,
+/// then any combination of the set will be also in the basis! --> juct check the individual elements, not all combinations!
+// https://atcoder.jp/contests/agc045/submissions/72290447
+// (3) In 2-player game, u can make a leader array to store the last controller for each basis (iterate from back)
+// https://atcoder.jp/contests/agc045/submissions/72290461, https://codeforces.com/contest/2116/submission/356879628
+// (4) when there are 2-arrays a, b, then the result woll be XOR(ai) ^ subset from(ai ^ bi)
+// https://codeforces.com/contest/2116/submission/356879628
+// (5)
+//
+
+
+
+//.................................................................................................................................................................................
+
+
+
+// Xor Basis
+template < ll B = 64 >
+struct Basis
+{
+    // variables
+    ll n, sz, basis[B];
+
+    // clear variables
+    void clear()
+    {
+        n = sz = 0;
+        mem(basis, 0);
+    }
+
+    // constructor
+    Basis() { clear(); }
+
+    // insert an element
+    bool insert(ll x)
+    {
+        n++;
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if((x >> i) & 1ll)
+            {
+                if(basis[i])
+                {
+                    x ^= basis[i];
+                }
+                else
+                {
+                    sz++;
+                    basis[i] = x;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // merge the current basis with another one
+    bool merge(Basis &b)
+    {
+        bool flag = false;
+        for(ll i = B - 1; i >= 0; i--)
+            if(b.basis[i] && !insert(b.basis[i])) flag = true;
+        return flag;
+    }
+
+    // returns the number of distinct (unique) XOR values that can be formed
+    ll distincts() { return 1ll << sz; }
+
+    // returns true if x can be formed as the XOR of some subset of the basis
+    bool can(ll x)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            x = min(x, x ^ basis[i]);
+        return x == 0;
+    }
+
+    // returns the total number of subsets of the original set whose XOR is exactly x
+    ll mod_exp(ll x, ll n, ll m = mod) { ll res = 1; while(n)
+    { if(n % 2) res = (((res % m) * (x % m)) % m); x = (((x % m) * (x % m)) % m); n /= 2; } return res; }
+    ll count(ll x)
+    {
+        if(!can(x)) return 0;
+        return mod_exp(2ll, n - sz);
+    }
+
+    // returns the minimum XOR you can get by XORing x with any subset of the basis
+    ll minXor(ll x = 0)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            x = min(x, x ^ basis[i]);
+        return x;
+    }
+
+    // returns the maximum XOR you can get by XORing x with any subset of the basis
+    ll maxXor(ll x = 0)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            x = max(x, x ^ basis[i]);
+        return x;
+    }
+
+    // returns the k-th smallest distinct XOR value when XORed with y (1-st is 0)
+    ll kth(ll k, ll y = 0)
+    {
+        ll cnt = (1ll << sz);
+        if(k < 1 || k > cnt) return -1;
+        ll x = 0;
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if(basis[i])
+            {
+                if(k > (cnt >> 1ll))
+                {
+                    if(!((x >> i) & 1ll) ^ ((y >> i) & 1ll)) x ^= basis[i];
+                    k -= (cnt >> 1ll);
+                }
+                else
+                {
+                    if(((x >> i) & 1ll) ^ ((y >> i) & 1ll)) x ^= basis[i];
+                }
+                cnt >>= 1ll;
+            }
+        }
+        return x ^ y;
+    }
+
+    // returns the k-th smallest duplicate XOR value (1-st is 0)
+    ll kth2(ll k)
+    {
+        if(k < 1 || k > (1ll << min(30ll, n))) return -1;
+
+        ll x = 1;
+        while(1)
+        {
+            if(count(kth(x)) < k)
+            {
+                x++;
+                k -= count(kth(x));
+            }
+            else
+            {
+                return kth(x);
+            }
+        }
+        return -1;
+    }
+
+    // returns the rank (order) of x among the distinct XOR values (1-st is 0)
+    ll getOrder(ll x)
+    {
+        if(!can(x)) return -1;
+        ll k = 0;
+        for(ll i = B - 1; i >= 0; i--)
+            if(basis[i])
+                k = 2*k + ((x >> i) & 1ll);
+        return k + 1;
+    }
+
+    // applies a bitwise AND with x to every value in the XOR basis, then rebuilds the basis
+    void updateAnd(ll x)
+    {
+        vector < ll > v;
+        for(ll i = 0; i < B; i++)
+        {
+            if(basis[i])
+            {
+                v.push_back(basis[i] & x);
+                basis[i] = 0;
+            }
+        }
+        sz = 0;
+        for(const auto &i : v) insert(i);
+    }
+
+    // applies a bitwise XOR with x to every value in the XOR basis, then rebuilds the basis (bit 0 is the parity bit)
+    void updateXor(ll x)
+    {
+        vector < ll > v;
+        for(ll i = 0; i < B; i++)
+        {
+            if(basis[i])
+            {
+                v.push_back(basis[i] % 2 ? basis[i] ^ x : basis[i]);
+                basis[i] = 0;
+            }
+        }
+        sz = 0;
+        for(const auto &i : v) insert(i);
+    }
+
+    // return the number of distinct XOR subset values that are < x
+    ll countLess(ll x)
+    {
+        if(x < 0) return 0;
+
+        ll ans = 0, cnt = (1ll << sz), mask = 0;
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if(basis[i])
+            {
+                if((x >> i) & 1ll)
+                {
+                    ans += (cnt >> 1ll);
+                    if(!((mask >> i) & 1ll)) mask ^= basis[i];
+                }
+                else
+                {
+                    if((mask >> i) & 1ll) mask ^= basis[i];
+                }
+                cnt >>= 1ll;
+            }
+            else
+            {
+                if(((x >> i) & 1ll) != ((mask >> i) & 1ll))
+                {
+                    if((x >> i) & 1ll) return ans + cnt;
+                    else  return ans;
+                }
+            }
+        }
+        return ans;
+    }
+
+    // https://en.wikipedia.org/wiki/Row_echelon_form#Reduced_row_echelon_form
+    void reduced_row_echelon_form()
+    {
+        for(ll i = 0; i < B; i++)
+        {
+            if(!basis[i]) continue;
+            for(ll j = i + 1; j < B; j++)
+                if((basis[i] >> i) & 1ll)
+                    basis[j] ^= basis[i];
+        }
+    }
+};
+
+
+
+//.................................................................................................................................................................................
+
+
+
+// Range queries trick:
+
+
+// get the maxXor in range [l, ∞[
+template < ll B = 64 >
+struct Basis
+{
+    ll n, sz, basis[B], mxTime[B];
+
+    void clear()
+    {
+        n = sz = 0;
+        mem(basis, 0);
+        mem(mxTime, 0);
+    }
+
+    Basis() { clear(); }
+
+    // insert an element
+    bool insert(ll x, ll t)
+    {
+        n++;
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if((x >> i) & 1ll)
+            {
+                if(basis[i])
+                {
+                    if(t > mxTime[i])
+                    {
+                        swap(t, mxTime[i]);
+                        swap(x, basis[i]);
+                    }
+                    x ^= basis[i];
+                }
+                else
+                {
+                    sz++;
+                    mxTime[i] = t;
+                    basis[i] = x;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    bool canFrom(ll x, ll l)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            if(mxTime[i] >= l)
+                x = min(x, x ^ basis[i]);
+        return x == 0;
+    }
+
+    ll maxXorFrom(ll l = 0)
+    {
+        ll x = 0;
+        for(ll i = B - 1; i >= 0; i--)
+            if(mxTime[i] >= l)
+                x = max(x, x ^ basis[i]);
+        return x;
+    }
+};
+
+
+
+//......................................................
+
+
+// get the maxXor in range ]-∞, r]
+template < ll B = 64 >
+struct Basis
+{
+    ll n, sz, basis[B], mnTime[B];
+
+    void clear()
+    {
+        n = sz = 0;
+        mem(basis, 0);
+        mem(mnTime, 0);
+    }
+
+    Basis() { clear(); }
+
+    // insert an element
+    bool insert(ll x, ll t)
+    {
+        n++;
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if((x >> i) & 1ll)
+            {
+                if(basis[i])
+                {
+                    if(t < mnTime[i])
+                    {
+                        swap(t, mnTime[i]);
+                        swap(x, basis[i]);
+                    }
+                    x ^= basis[i];
+                }
+                else
+                {
+                    sz++;
+                    mnTime[i] = t;
+                    basis[i] = x;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    bool canTill(ll x, ll r)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            if(mnTime[i] <= r)
+                x = min(x, x ^ basis[i]);
+        return x == 0;
+    }
+
+    ll maxXorTill(ll r = 0)
+    {
+        ll x = 0;
+        for(ll i = B - 1; i >= 0; i--)
+            if(mnTime[i] <= r)
+                x = max(x, x ^ basis[i]);
+        return x;
+    }
+};
+
+
+
+//.................................................................................................................................................................................
+
+
+// return the original indicies that make the max XOR
+template < ll B = 64 >
+struct Basis
+{
+    ll n, sz, basis[B];
+    set < ll > idxs[B];
+
+    void clear()
+    {
+        n = sz = 0;
+        mem(basis, 0);
+        for(ll i = 0; i < B; i++) idxs[i].clear();
+    }
+
+    Basis() { clear(); }
+
+    bool can(ll x)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            x = min(x, x ^ basis[i]);
+        return x == 0;
+    }
+
+    void xorSet(set < ll > &me, set < ll > &with)
+    {
+        for(const auto &i : with)
+        {
+            if(me.contains(i)) me.erase(i);
+            else me.insert(i);
+        }
+    }
+
+    bool insert(ll x, ll id)
+    {
+        n++;
+
+        if(can(x)) return false;
+
+        set < ll > st = {id};
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if((x >> i) & 1ll)
+            {
+                if(basis[i])
+                {
+                    x ^= basis[i];
+                    xorSet(st, idxs[i]);
+                }
+                else
+                {
+                    sz++;
+                    basis[i] = x;
+                    idxs[i] = st;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    pair < ll, set < ll > > maxXor(ll x = 0)
+    {
+        set < ll > st;
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if(!basis[i]) continue;
+            if((x ^ basis[i]) > x)
+            {
+                x ^= basis;
+                xorSet(st, idxs[i]);
+            }
+        }
+        return {x, st};
+    }
+};
+
+
+
+//.................................................................................................................................................................................
+
+
+
+// Segment Tree of Basis
+struct Node
+{
+    Basis < 64 > b;
+
+    Node() { }
+
+    Node(ll x) { b.insert(x); }
+
+    void change(ll x) { b.clear(); b.insert(x); }
+};
+
+struct segTree
+{
+
+    ll leaf_size, tree_size;
+    vector < Node > segData;
+
+    segTree(ll n)
+    {
+        leaf_size = 1;
+        while(leaf_size < n) leaf_size *= 2;
+        tree_size = 2 * leaf_size;
+        segData.resize(tree_size, Node());
+    }
+
+    Node merge(Node &lf, Node &ri)
+    {
+        Node ans = Node();
+
+        ans = lf;
+        ans.b.merge(ri.b);
+
+        return ans;
+    }
+
+    void init(vector < ll > &a, ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1)
+        {
+            if(lx < (ll)a.size()) segData[ni] = Node(a[lx]);
+            else segData[ni] = Node();
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+
+        init(a, 2*ni + 1, lx, mid);
+        init(a, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void init(vector < ll > &a) { init(a, 0, 0, leaf_size); }
+
+    void set(ll idx, ll val, ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1)
+        {
+            segData[ni].change(val);
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+
+        if(idx < mid) set(idx, val, 2*ni + 1, lx, mid);
+        else  set(idx, val, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void set_node(ll idx, ll val) { set(idx, val, 0, 0, leaf_size); }
+
+    Node get(ll l, ll r, ll ni, ll lx, ll rx) // 0-indexed, [lx, rx[
+    {
+        if(lx >= r || rx <= l) return Node();
+
+        if(l <= lx && rx <= r) return segData[ni];
+
+        ll mid = (lx + rx) / 2;
+        Node lf = get(l, r, 2*ni + 1, lx, mid);
+        Node ri = get(l, r, 2*ni + 2, mid, rx);
+
+        if(r <= mid) return lf;
+        else if(mid <= l) return ri;
+        else  return merge(lf, ri);
+    }
+    Node get_range(ll l, ll r) { return get(l, r, 0, 0, leaf_size); }
+    Node get_node(ll idx) { return get(idx, idx + 1, 0, 0, leaf_size); }
+};
+
+
+
+//.................................................................................................................................................................................
+
+
+
+// Lazy Segment Tree of Basis
+struct Node
+{
+    Basis < 60 > b;
+    ll lazy;
+    bool is_lazy;
+
+    Node()
+    {
+        lazy = -1ll;
+        is_lazy = 0;
+    }
+
+    Node(ll x)
+    {
+        b.insert(x);
+        lazy = -1ll;
+        is_lazy = 0;
+    }
+
+    void change(ll x, ll lx, ll rx)
+    {
+        b.updateAnd(x);
+        lazy &= x;
+        is_lazy = 1;
+    }
+
+};
+
+struct segTree
+{
+
+    ll leaf_size, tree_size;
+    vector < Node > segData;
+
+    segTree(ll n)
+    {
+        leaf_size = 1;
+        while(leaf_size < n) leaf_size *= 2;
+        tree_size = 2 * leaf_size;
+        segData.resize(tree_size, Node());
+    }
+
+    Node merge(Node &lf, Node &ri)
+    {
+        Node ans = Node();
+
+        ans.b = lf.b;
+        ans.b.merge(ri.b);
+
+        return ans;
+    }
+
+    void propagete(ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1 || segData[ni].is_lazy == 0) return;
+
+        ll mid = (lx + rx) / 2;
+        segData[2*ni + 1].change(segData[ni].lazy, lx, mid);
+        segData[2*ni + 2].change(segData[ni].lazy, mid, rx);
+
+        segData[ni].lazy = -1ll;
+        segData[ni].is_lazy = 0;
+    }
+
+    void init(vector < ll > &a, ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1)
+        {
+            if(lx < (ll)a.size()) segData[ni] = Node(a[lx]);
+            else segData[ni] = Node();
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        init(a, 2*ni + 1, lx, mid);
+        init(a, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void init(vector < ll > &a) { init(a, 0, 0, leaf_size); }
+
+    void set(ll l, ll r, ll val, ll f, ll ni, ll lx, ll rx)
+    {
+        propagete(ni, lx, rx);
+
+        if(lx >= r || rx <= l) return;
+
+        if(l <= lx && rx <= r)
+        {
+            if(f) segData[ni].change(val, lx, rx);
+            else segData[ni] = Node(val);
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+
+        set(l, r, val, f, 2*ni + 1, lx, mid);
+        set(l, r, val, f, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void set_range(ll l, ll r, ll val) { set(l, r, val, 1, 0, 0, leaf_size); }
+    void set_node(ll idx, ll val) { set(idx, idx + 1, val, 0, 0, 0, leaf_size); }
+
+    Node get(ll l, ll r, ll ni, ll lx, ll rx)
+    {
+        propagete(ni, lx, rx);
+
+        if(lx >= r || rx <= l)  return Node();
+        if(l <= lx && rx <= r) return segData[ni];
+
+        ll mid = (lx + rx) / 2;
+        Node lf = get(l, r, 2*ni + 1, lx, mid);
+        Node ri = get(l, r, 2*ni + 2, mid, rx);
+
+        if(r <= mid) return lf;
+        else if(mid <= l) return ri;
+        else return merge(lf, ri);
+    }
+    Node get_range(ll l, ll r) { return get(l, r, 0, 0, leaf_size); }
+    Node get_node(ll idx) { return get(idx, idx + 1, 0, 0, leaf_size); }
+};
+
+
+
+//.................................................................................................................................................................................
+
+
+
+// Basis with Rollbacks
+template < ll B = 64 >
+struct RollbackBasis
+{
+
+    // variables
+    ll n = 0, sz = 0, basis[B];
+    struct Change
+    {
+        int bit;     // which basis index changed, -1 if none
+        ll oldVal;   // previous basis[bit]
+        bool incSz;  // whether sz was increased or not
+    };
+    vector < Change > history;
+    vector < ll > snapshots;   // stack of snapshots
+
+    // constructor
+    RollbackBasis() { clear(); }
+
+    // clear variables
+    void clear()
+    {
+        n = sz = 0;
+        mem(basis, 0);
+        history.clear();
+        snapshots.clear();
+    }
+
+    // push snapshot
+    void snapshot() { snapshots.push_back((ll)history.size()); }
+
+    // rollback to last snapshot
+    void rollback()
+    {
+        if(snapshots.empty()) return;
+
+        int snap = snapshots.back();
+        snapshots.pop_back();
+
+        while((ll)history.size() > snap)
+        {
+            auto c = history.back(); history.pop_back();
+            n--;
+            if(c.bit != -1)
+            {
+                basis[c.bit] = c.oldVal;
+                if(c.incSz) sz--;
+            }
+        }
+    }
+
+    // insert an element
+    bool insert(ll x)
+    {
+        n++;
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if((x >> i) & 1LL)
+            {
+                if (basis[i])
+                {
+                    x ^= basis[i];
+                }
+                else
+                {
+                    history.push_back({i, basis[i], true});
+                    sz++;
+                    basis[i] = x;
+                    return true;
+                }
+            }
+        }
+
+        history.push_back({-1, 0, false});
+        return false;
+    }
+
+    // merge the current basis with another one
+    bool merge(RollbackBasis &b)
+    {
+        bool flag = false;
+        for(ll i = B - 1; i >= 0; i--)
+            if(b.basis[i] && !insert(b.basis[i])) flag = true;
+        return flag;
+    }
+
+    // returns the number of distinct (unique) XOR values that can be formed
+    ll distincts() { return 1ll << sz; }
+
+    // returns true if x can be formed as the XOR of some subset of the basis
+    bool can(ll x)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            x = min(x, x ^ basis[i]);
+        return x == 0;
+    }
+
+    // returns the total number of subsets of the original set whose XOR is exactly x
+    ll mod_exp(ll x, ll n, ll m = mod) { ll res = 1; while(n)
+    { if(n % 2) res = (((res % m) * (x % m)) % m); x = (((x % m) * (x % m)) % m); n /= 2; } return res; }
+    ll count(ll x)
+    {
+        if(!can(x)) return 0;
+        return mod_exp(2ll, n - sz);
+    }
+
+    // returns the minimum XOR you can get by XORing x with any subset of the basis
+    ll minXor(ll x = 0)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            x = min(x, x ^ basis[i]);
+        return x;
+    }
+
+    // returns the maximum XOR you can get by XORing x with any subset of the basis
+    ll maxXor(ll x = 0)
+    {
+        for(ll i = B - 1; i >= 0; i--)
+            x = max(x, x ^ basis[i]);
+        return x;
+    }
+
+    // returns the k-th smallest distinct XOR value when XORed with y (1-st is 0)
+    ll kth(ll k, ll y = 0)
+    {
+        ll cnt = (1ll << sz);
+        if(k < 1 || k > cnt) return -1;
+        ll x = 0;
+        for(ll i = B - 1; i >= 0; i--)
+        {
+            if(basis[i])
+            {
+                if(k > (cnt >> 1ll))
+                {
+                    if(!((x >> i) & 1ll) ^ ((y >> i) & 1ll)) x ^= basis[i];
+                    k -= (cnt >> 1ll);
+                }
+                else
+                {
+                    if(((x >> i) & 1ll) ^ ((y >> i) & 1ll)) x ^= basis[i];
+                }
+                cnt >>= 1ll;
+            }
+        }
+        return x ^ y;
+    }
+};
+
+
+
+//.................................................................................................................................................................................
+
+

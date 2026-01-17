@@ -1,0 +1,205 @@
+//.................................................................................................................................................................................
+
+
+
+// squared distance
+T dist2(cT pt1, cT pt2 = {0, 0})
+{
+    T dx = fabsl(pt1.X - pt2.X);
+    T dy = fabsl(pt1.Y - pt2.Y);
+    return dx*dx + dy*dy;
+}
+
+// euclidean distance
+ld dist(cld pt1, cld pt2 = {0.0L, 0.0L})
+{
+    ld dx = fabsl(pt1.X - pt2.X);
+    ld dy = fabsl(pt1.Y - pt2.Y);
+    return (ld)sqrtl(dx*dx + dy*dy);
+    // return (ld)abs(pt1 - pt2);
+    // return (ld)sqrtl(dist2((T)pt1, (T)pt2));
+}
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cT v, cT w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cT v, cT w) { return v.X*w.Y - v.Y*w.X; }
+
+// get the perpendicular vector (rotated 90° anti-clockwise)
+cT perp(cT p) { return {-p.Y, p.X}; }
+
+
+
+/*                              Line                              */
+// vector (b, -a) is parallel to line ax + by = c, while vector (a, b) is perpendicular to the line
+// point (x, y) is on line if v x (x, y) = c  (b, -a) x (x, y) = c  ax + by = c
+// take care that given equation may be ax + by + c = 0  ax + by = -c
+//
+
+
+
+struct Line
+{
+    cld v; // {b, -a}
+    T c;
+
+    // vector v & constant c
+    Line(cld v, T c) : v(v), c(c) { }
+
+    // ax + by = c
+    Line(T a, T b, T _c)
+    {
+        v = {b, -a};
+        c = _c;
+    }
+
+    // two points on the line (a → b)
+    Line(cld a, cld b)
+    {
+        v = b - a;
+        c = cross(v, a);
+    }
+
+    // return +ve if point p is left to the Line ab, -ve if right to the line, and 0 if on the line
+    T side(cld p) { return cross(v, p) - c; } // ax + by - c
+
+    // length of the perpendicular line of the point p on the line is: |ax + by - c| / sqrtl(a*a + b*b)
+    ld dist(cld p)   { return fabsl(side(p)) / abs(v); }
+    ld sqDist(cld p) { return side(p)*side(p) / (ld)dist2(v);} // dist * dist
+
+    // return a line passes through p and perpendicular on the line
+    Line perpLineThrough(cld p) { return {p, p + perp(p)}; }
+
+    // sorts points in the order of their projection along v.
+    // returns true, if Point p projection on the line lies before point q projection on the line.
+    bool cmpProjection(cld p, cld q) { return dot(v, q) - dot(v, p) > eps; } // > -eps if u want equality
+
+    // translates a line by a vector t
+    Line translate(cld t) { return {v, c + cross(v,t)}; }
+
+    // shifts the line to the left by a distance r (perpendicular to its direction)
+    Line shiftLeft(T r) { return {v, c + r*abs(v)}; }
+
+    // shifts the line to the right by a distance r (perpendicular to its direction)
+    Line shiftRight(T r) { return {v, c - r*abs(v)}; }
+
+    // computes the orthogonal projection point of a point p onto a line
+    cld projection(cld p) { return p - perp(v) * (ld)side(p) / (ld)dist2(v); }
+
+    // computes the reflection point of point p across a line
+    cld reflection(cld p) { return p - perp(v) * 2.0L * (ld)side(p) / (ld)dist2(v); }
+};
+
+// computes the intersection point of two lines
+pair < bool, cld > Lineintersection(Line l1, Line l2)
+{
+    T d = cross(l1.v, l2.v);
+    if(!sgn(d)) return {false, {}}; // or fabsl(d) < eps
+    return {true, (l2.v*(ld)l1.c - l1.v*(ld)l2.c) / (ld)d};
+}
+
+// computes an angle bisector of two (non-parallel) lines l1 and l2 is a line that forms equal angles with l1 and l2
+// interior = 1 means internal bisector, else external bisector
+// interior bisector is a line  whose direction vector points between the direction vectors of l1 and l2
+Line Linebisector(Line l1, Line l2, bool interior = 1)
+{
+    assert(sgn(cross(l1.v, l2.v)) != 0); // l1 and l2 cannot be parallel!
+    ld sign = interior? 1 : -1;
+    return {l2.v/abs(l2.v) + l1.v/abs(l1.v) * sign, l2.c/abs(l2.v) + l1.c/abs(l1.v) * sign};
+}
+
+
+
+//.................................................................................................................................................................................
+
+//...............................................................................
+
+
+// Line frequencies
+// https://lightoj.com/problem/laser-shot
+// https://vjudge.net/problem/LightOJ-1432
+array < ll, 3 > norm(ll a, ll b, ll c)
+{
+    if(a < 0 || (a == 0 && b < 0) || (a == 0 && b == 0 && c < 0))
+        a = -a, b = -b, c = -c;
+
+    ll g = gcd(llabs(a), gcd(llabs(b), llabs(c)));
+    if(g > 1) a/= g, b /= g, c /= g;
+
+    return {a, b, c};
+}
+
+ll maxOnLine(vector < pair < ll, ll > > &a)
+{
+    ll n = (ll)a.size();
+
+    // log factor of set is high
+    map < array < ll, 3 >, set < ll > > mp;
+
+    for(ll i = 0; i < n; i++)
+    {
+        for(ll j = i + 1; j < n; j++)
+        {
+            auto [x1, y1] = a[i];
+            auto [x2, y2] = a[j];
+
+            ll a = y2 - y1;
+            ll b = -(x2 - x1);
+            ll c = x2*y1 - x1*y2;
+            mp[norm(a, b, c)].insert(i);
+            mp[norm(a, b, c)].insert(j);
+        }
+    }
+
+    ll res = 1;
+    for(const auto &[line, points] : mp)
+        res = max(res, (ll)points.size());
+
+    return res;
+}
+
+//...............................................................................
+
+array < ll, 3 > norm(ll a, ll b, ll c)
+{
+    if(a < 0 || (a == 0 && b < 0) || (a == 0 && b == 0 && c < 0))
+        a = -a, b = -b, c = -c;
+
+    ll g = gcd(abs(a), gcd(abs(b), abs(c)));
+    if(g > 1) a/= g, b /= g, c /= g;
+
+    return {a, b, c};
+}
+
+ll maxOnLine(vector < pair < ll, ll > > &a)
+{
+    ll n = (ll)a.size();
+    ll res = 0;
+    for(ll i = 0; i < n; i++)
+    {
+        map < array < ll, 3 >, ll > mp;
+        for(ll j = i + 1; j < n; j++)
+        {
+            auto [x1, y1] = a[i];
+            auto [x2, y2] = a[j];
+
+            ll a = y2 - y1;
+            ll b = -(x2 - x1);
+            ll c = x2*y1 - x1*y2;
+            array < ll, 3 > l = norm(a, b, c);
+            mp[l]++;
+        }
+        for(const auto &[_, f] : mp)
+            res = max(res, f + 1);
+    }
+
+    return res;
+}
+
+//...............................................................................
+
+//.................................................................................................................................................................................

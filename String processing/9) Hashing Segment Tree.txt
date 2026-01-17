@@ -1,0 +1,480 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                         Double Hashing Segment Tree                         */
+// Pre-processing in O(2*N), memory size is O(4*(N + n))
+// update node/range, get node/range hash values in O(logn)
+// adjust base (29, 31, 37, 41, 137, 277) & mod (127657753, 987654319, 998244353, 1e9 + 7, 1e9 + 9)
+// if TLE --> Single Hashing Segment Tree
+
+// ....................
+
+const ll N = (ll)2e6 + 6, base1 = 31, base2 = 41, mod1 = (ll)127657753, mod2 = (ll)987654319;
+const char _ref = 'a' - 1ll; // 'a', 'A'
+
+// ....................
+
+// Modular(Binary) Exponentiation: Quick calculation of ((x^n) mod m) in O(log(n))
+ll mod_exp(ll x, ll n, ll m = mod)
+{
+    ll res = 1;
+    while(n)
+    {
+        if (n % 2) res = (((res % m) * (x % m)) % m);
+        x = (((x % m) * (x % m)) % m);
+        n /= 2;
+    }
+    return res;
+}
+
+// Modular Arithmetic operations
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_inv(ll x, ll m = mod){ return mod_exp(x , m - 2, m); } // Fermat’s little theorem (m is a prime number)
+ll mod_div(ll x, ll y, ll m = mod){ return mod_mul(x, mod_inv(y, m), m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+
+// ....................
+
+ll pw1[N], pw2[N], inv1[N], inv2[N];
+void pre_process()
+{
+    ll inv1_val = mod_inv(base1, mod1), inv2_val = mod_inv(base2, mod2);
+
+    pw1[0] = pw2[0] = inv1[0] = inv2[0] = 1;
+    for(ll i = 1; i < N; i++)
+    {
+        pw1[i] = mod_mul(pw1[i - 1], base1, mod1);
+        pw2[i] = mod_mul(pw2[i - 1], base2, mod2);
+
+        inv1[i] = mod_mul(inv1[i - 1], inv1_val, mod1);
+        inv2[i] = mod_mul(inv2[i - 1], inv2_val, mod2);
+    }
+
+}
+
+// ....................
+
+struct Node
+{
+
+    pair < ll, ll > pre_val;   // 0 1 2 ... (n - 1)
+    pair < ll, ll > suff_val;  // (n - 1) .... 2 1 0
+
+    Node() // neutral
+    {
+        pre_val = suff_val = {0, 0};
+    }
+
+    Node(char c, ll idx, ll n)
+    {
+        ll digit = (ll)(c - _ref);
+
+        pre_val.first = mod_mul(digit, pw1[idx], mod1);
+        pre_val.second = mod_mul(digit, pw2[idx], mod2);
+
+        suff_val.first = mod_mul(digit, pw1[n - idx - 1], mod1);
+        suff_val.second = mod_mul(digit, pw2[n - idx - 1], mod2);
+    }
+
+    void change(char c, ll idx, ll n) // change or modify
+    {
+        ll digit = (ll)(c - _ref);
+
+        pre_val.first = mod_mul(digit, pw1[idx], mod1);
+        pre_val.second = mod_mul(digit, pw2[idx], mod2);
+
+        suff_val.first = mod_mul(digit, pw1[n - idx - 1], mod1);
+        suff_val.second = mod_mul(digit, pw2[n - idx - 1], mod2);
+    }
+
+};
+
+struct segTree
+{
+
+    ll leaf_size, tree_size;
+    vector < Node > segData;
+
+    segTree(ll n)
+    {
+        leaf_size = 1;
+        while(leaf_size < n) leaf_size *= 2;
+        tree_size = 2 * leaf_size;
+        segData.resize(tree_size, Node());
+    }
+
+
+    // what we do on each two adjacent nodes to get their parent --> modifiable!
+    Node merge(Node &lf, Node &ri)
+    {
+        Node ans = Node();
+
+        // operations to get ans (parent) node
+        ans.pre_val.first = mod_add(lf.pre_val.first, ri.pre_val.first, mod1);
+        ans.pre_val.second = mod_add(lf.pre_val.second, ri.pre_val.second, mod2);
+
+        ans.suff_val.first = mod_add(lf.suff_val.first, ri.suff_val.first, mod1);
+        ans.suff_val.second = mod_add(lf.suff_val.second, ri.suff_val.second, mod2);
+
+        return ans;
+    }
+
+
+    // initialization with values in O(n)
+    void init(string &s, ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1)
+        {
+            if(lx < (ll)s.size())
+                segData[ni] = Node(s[lx], lx, (ll)s.size());
+            else
+                segData[ni] = Node();
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        init(s, 2*ni + 1, lx, mid);
+        init(s, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void init(string &s) { init(s, 0, 0, leaf_size); }
+
+
+    // set node in O(logn)
+    void set(ll idx, char val, ll n, ll ni, ll lx, ll rx) // 0-indexed, [lx, rx[
+    {
+        if(rx - lx == 1)
+        {
+            segData[ni].change(val, idx, n);
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+
+        if(idx < mid)
+            set(idx, val, n,  2*ni + 1, lx, mid);
+        else
+            set(idx, val, n, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void set_node(ll idx, char val, ll n) { set(idx, val, n, 0, 0, leaf_size); }
+
+
+    // get node/range in O(2*logn)
+    Node get(ll l, ll r, ll ni, ll lx, ll rx) // 0-indexed, [lx, rx[
+    {
+        if(lx >= r || rx <= l) // no intersection --> useless node & it's childs --> return neutral
+            return Node();
+
+        if(l <= lx && rx <= r) // all segments in --> take it
+            return segData[ni];
+
+        // intersection --> go deeper
+        ll mid = (lx + rx) / 2;
+        Node lf = get(l, r, 2*ni + 1, lx, mid);
+        Node ri = get(l, r, 2*ni + 2, mid, rx);
+
+        if(r <= mid) // totally in left
+            return lf;
+        else if(mid <= l) // totally in right
+            return ri;
+        else // merge
+            return merge(lf, ri);
+    }
+    Node get_range(ll l, ll r) { return get(l, r, 0, 0, leaf_size); }
+    Node get_node(ll idx) { return get(idx, idx + 1, 0, 0, leaf_size); }
+
+
+    // more methods...
+    pair < ll, ll > get_hash(ll l, ll r, ll n) // (n - 1) .... 2 1 0
+    {
+        Node ni = get_range(l, r);
+        ni.suff_val.first = mod_mul(ni.suff_val.first, inv1[n - r], mod1);
+        ni.suff_val.second = mod_mul(ni.suff_val.second, inv2[n - r], mod2);
+        return ni.suff_val;
+    }
+
+    pair < ll, ll > get_rev_hash(ll l, ll r, ll n) // 0 1 2 .... (n - 1)
+    {
+        Node ni = get_range(l, r);
+        ni.pre_val.first = mod_mul(ni.pre_val.first, inv1[l], mod1);
+        ni.pre_val.second = mod_mul(ni.pre_val.second, inv2[l], mod2);
+        return ni.pre_val;
+    }
+
+    ll is_pal(ll l, ll r, ll n)
+    {
+        return get_hash(l, r, n) == get_rev_hash(l, r, n);
+    }
+
+};
+
+// ....................
+
+pre_process();
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                         Double Hashing Segment Tree with lazy propagation                        */
+// Pre-processing in O(2*N), memory size is O(4*(N + n))
+// update node/range, get node/range hash values in O(logn)
+// adjust base (29, 31, 37, 41, 137, 277) & mod (127657753, 987654319, 998244353, 1e9 + 7, 1e9 + 9)
+
+// ....................
+
+const ll N = (ll)2e6 + 6, base1 = 31, base2 = 41, mod1 = (ll)127657753, mod2 = (ll)987654319;
+const char _ref = '0' - 1; // 'a', 'A', '0'
+
+// ....................
+
+// Modular(Binary) Exponentiation: Quick calculation of ((x^n) mod m) in O(log(n))
+ll mod_exp(ll x, ll n, ll m = mod)
+{
+    ll res = 1;
+    while(n)
+    {
+        if (n % 2) res = (((res % m) * (x % m)) % m);
+        x = (((x % m) * (x % m)) % m);
+        n /= 2;
+    }
+    return res;
+}
+
+// Modular Arithmetic operations
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_inv(ll x, ll m = mod){ return mod_exp(x , m - 2, m); } // Fermat’s little theorem (m is a prime number)
+ll mod_div(ll x, ll y, ll m = mod){ return mod_mul(x, mod_inv(y, m), m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+
+// ....................
+
+ll pw1[N], pw2[N], pre_pw1[N], pre_pw2[N], inv1[N], inv2[N];
+void pre_process()
+{
+    ll inv1_val = mod_inv(base1, mod1), inv2_val = mod_inv(base2, mod2);
+
+    pw1[0] = pw2[0] = pre_pw1[0] = pre_pw2[0] = inv1[0] = inv2[0] = 1;
+    for(ll i = 1; i < N; i++)
+    {
+        pw1[i] = mod_mul(pw1[i - 1], base1, mod1);
+        pw2[i] = mod_mul(pw2[i - 1], base2, mod2);
+
+        pre_pw1[i] = mod_add(pw1[i], pre_pw1[i - 1], mod1);
+        pre_pw2[i] = mod_add(pw2[i], pre_pw2[i - 1], mod2);
+
+        inv1[i] = mod_mul(inv1[i - 1], inv1_val, mod1);
+        inv2[i] = mod_mul(inv2[i - 1], inv2_val, mod2);
+    }
+
+}
+
+// ....................
+
+struct Node
+{
+
+    // get variables
+    pair < ll, ll > pre_val;   // 0 1 2 ... (n - 1)
+    pair < ll, ll > suff_val;  // (n - 1) .... 2 1 0
+
+
+    char lazy; // take care of initial value (may be changed to non-zero value!) --> modified in propagation also!
+    bool is_lazy;
+
+
+    Node() // neutral --> used in constructor, init, set, get(can be modified there! --> take care of it!)
+    {
+        pre_val = suff_val = {0, 0};
+
+        lazy = ' ';
+        is_lazy = 0;
+    }
+
+    Node(char c, ll idx, ll n)
+    {
+        ll digit = (ll)(c - _ref);
+
+        pre_val.first = mod_mul(digit, pw1[idx], mod1);
+        pre_val.second = mod_mul(digit, pw2[idx], mod2);
+
+        suff_val.first = mod_mul(digit, pw1[n - idx - 1], mod1);
+        suff_val.second = mod_mul(digit, pw2[n - idx - 1], mod2);
+
+        lazy = ' ';
+        is_lazy = 0;
+    }
+
+
+    // set operation (remeber [lx, rx[ !)
+    void change(char c, ll lx, ll rx, ll n) // change or modify (sm like lazy!)
+    {
+        // if i have (r - l) child nodes, and all modified (apply set type operations) by x --> what should be my new value as their parent (get value)?  (segment tree store get!!)
+        ll digit = (ll)(c - _ref);
+
+        pre_val.first = mod_mul(digit, mod_sub(pre_pw1[(rx - 1)], (lx ? pre_pw1[lx - 1] : 0), mod1), mod1);
+        pre_val.second = mod_mul(digit, mod_sub(pre_pw2[(rx - 1)], (lx ? pre_pw2[lx - 1] : 0), mod2), mod2);
+
+        suff_val.first = mod_mul(digit, mod_sub(pre_pw1[n - 1 - lx], ((n - 1 - (rx - 1)) ? pre_pw1[n - 1 - (rx - 1) - 1] : 0), mod1), mod1);
+        suff_val.second = mod_mul(digit, mod_sub(pre_pw2[n - 1 - lx], ((n - 1 - (rx - 1)) ? pre_pw2[n - 1 - (rx - 1) - 1] : 0), mod2), mod2);
+
+        lazy = c;
+        is_lazy = 1;
+    }
+
+};
+
+
+struct segTree
+{
+    ll leaf_size, tree_size;
+    vector < Node > segData;
+
+    segTree(ll n)
+    {
+        leaf_size = 1;
+        while(leaf_size < n) leaf_size *= 2;
+        tree_size = 2 * leaf_size;
+        segData.resize(tree_size, Node());
+    }
+
+
+    // what we do on each two adjacent nodes to get their parent in O(1) --> modifiable!
+    Node merge(Node &lf, Node &ri)
+    {
+        Node ans = Node();
+
+        // operations to get ans (parent) node
+        ans.pre_val.first = mod_add(lf.pre_val.first, ri.pre_val.first, mod1);
+        ans.pre_val.second = mod_add(lf.pre_val.second, ri.pre_val.second, mod2);
+
+        ans.suff_val.first = mod_add(lf.suff_val.first, ri.suff_val.first, mod1);
+        ans.suff_val.second = mod_add(lf.suff_val.second, ri.suff_val.second, mod2);
+
+        return ans;
+    }
+
+
+    // Propagation in O(1)
+    void propagete(ll ni, ll lx, ll rx, ll n)
+    {
+        if(rx - lx == 1 || segData[ni].is_lazy == 0) return;
+
+        ll mid = (lx + rx) / 2;
+        segData[2*ni + 1].change(segData[ni].lazy, lx, mid, n);
+        segData[2*ni + 2].change(segData[ni].lazy, mid, rx, n);
+
+        segData[ni].lazy = ' ';  // modifiable!
+        segData[ni].is_lazy = 0;
+    }
+
+
+    // initialization with values in O(n)
+    void init(string &s, ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1)
+        {
+            if(lx < (ll)s.size())
+                segData[ni] = Node(s[lx], lx, (ll)s.size());
+            else
+                segData[ni] = Node();
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        init(s, 2*ni + 1, lx, mid);
+        init(s, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void init(string &s) { init(s, 0, 0, leaf_size); }
+
+
+    // set node/range in O(logn)
+    void set(ll l, ll r, char val, ll n, ll ni, ll lx, ll rx) // 0-indexed, [lx, rx[
+    {
+        propagete(ni, lx, rx, n);
+
+        if(lx >= r || rx <= l) return;  // no intersection --> useless node & it's childs
+
+        if(l <= lx && rx <= r) // all segments in --> take it
+        {
+            segData[ni].change(val, lx, rx, n);
+            return;
+        }
+
+        // intersection --> dive deeper
+        ll mid = (lx + rx) / 2;
+
+        set(l, r, val, n, 2*ni + 1, lx, mid);
+        set(l, r, val, n, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void set_range(ll l, ll r, char val, ll n) { set(l, r, val, n, 0, 0, leaf_size); }
+    void set_node(ll idx, char val, ll n) { set(idx, idx + 1, val, n, 0, 0, leaf_size); }
+
+
+    // get node/range in O(2*logn)
+    Node get(ll l, ll r, ll n, ll ni, ll lx, ll rx) // 0-indexed, [lx, rx[
+    {
+        propagete(ni, lx, rx, n);
+
+        if(lx >= r || rx <= l) // no intersection --> useless node & it's childs --> return neutral
+            return Node(); // default neutral when getting      -->       modifiable! (important!)
+
+        if(l <= lx && rx <= r) // all segments in --> take it
+            return segData[ni];
+
+        // intersection --> go deeper
+        ll mid = (lx + rx) / 2;
+
+        Node lf = get(l, r, n, 2*ni + 1, lx, mid);
+        Node ri = get(l, r, n, 2*ni + 2, mid, rx);
+
+        if(r <= mid) // totally in left
+            return lf;
+        else if(mid <= l) // totally in right
+            return ri;
+        else // merge
+            return merge(lf, ri);
+    }
+    Node get_range(ll l, ll r, ll n) { return get(l, r, n, 0, 0, leaf_size); }
+    Node get_node(ll idx, ll n) { return get(idx, idx + 1, n, 0, 0, leaf_size); }
+
+
+    // more methods...
+    pair < ll, ll > get_hash(ll l, ll r, ll n) // (n - 1) .... 2 1 0
+    {
+        Node ni = get_range(l, r, n);
+        ni.suff_val.first = mod_mul(ni.suff_val.first, inv1[n - r], mod1);
+        ni.suff_val.second = mod_mul(ni.suff_val.second, inv2[n - r], mod2);
+        return ni.suff_val;
+    }
+
+    pair < ll, ll > get_rev_hash(ll l, ll r, ll n) // 0 1 2 .... (n - 1)
+    {
+        Node ni = get_range(l, r, n);
+        ni.pre_val.first = mod_mul(ni.pre_val.first, inv1[l], mod1);
+        ni.pre_val.second = mod_mul(ni.pre_val.second, inv2[l], mod2);
+        return ni.pre_val;
+    }
+
+    ll is_pal(ll l, ll r, ll n)
+    {
+        return get_hash(l, r, n) == get_rev_hash(l, r, n);
+    }
+
+};
+
+// ....................
+
+pre_process();
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

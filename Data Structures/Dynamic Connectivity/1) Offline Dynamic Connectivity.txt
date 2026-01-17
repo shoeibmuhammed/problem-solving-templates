@@ -1,0 +1,596 @@
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         Offline Dynamic Connectivity (Segment Tree + DSU with Rollbacks)                         */
+// This data structure answers connectivity queries in a graph where edges are added and removed over time (dynamic graph).
+// The queries are processed offline.
+// Time complexity is O((n + q) * log2(q)), Memory is O(q * log2(q))
+// core idea: evey edges represent some intervals which it's lifetime
+// when to think about it: when the problem contains add/removing ranges,
+// and u need to get answer for queries at different places, so u need to include some ranges that are on,
+// and exclude the others bcos they are off, then try it.
+//
+// Tricks:
+//         1) u can make queries updates: https://judge.yosupo.jp/problem/dynamic_graph_vertex_add_component_sum
+//
+//
+
+
+
+// problem statement: given n nodes, q queries
+// each query add an edge, remove an edge, print the number of connected compents
+// https://codeforces.com/gym/100551/problem/A
+
+
+
+struct DSUrollback
+{
+    // variables
+    ll cnt;
+    stack < array < ll, 4 > > st;
+    vector < ll > parent, sz;
+
+    void init(ll n)
+    {
+        cnt = n;
+        parent.resize(n + 1); sz.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1;
+    }
+
+    ll find(ll u)
+    {
+        while(u != parent[u]) u = parent[u];
+        return u;
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+
+        st.push({-1, -1, -1, -1});
+        if(parent[u] == parent[v]) return 0;
+        st.pop();
+
+        if(sz[u] < sz[v]) swap(u, v);
+
+        st.push({u, sz[u], v, parent[v]});
+
+        parent[v] = u;
+        sz[u] += sz[v];
+        cnt--;
+
+        return 1;
+    }
+
+    void rollback()
+    {
+        auto it = st.top(); st.pop();
+
+        if(it[0] == -1 || it[0] == -2) return;
+
+        ll u = it[0], szu = it[1], v = it[2], pv = it[3];
+        parent[v] = pv;
+        sz[u] = szu;
+        cnt++;
+    }
+
+    void checkpoint()
+    {
+        st.push({-2, -2, -2, -2});
+    }
+
+    void undo()
+    {
+        while(!st.empty() && st.top()[0] != -2) rollback();
+        if(!st.empty()) st.pop();
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+};
+
+struct Node
+{
+    vector < ll > v;
+
+    Node() { }
+
+    void change(ll x)
+    {
+        v.push_back(x);
+    }
+};
+
+struct OfflineDynamicConnectivity
+{
+
+    ll n, q;
+    DSUrollback d;
+    vector < ll > queries, ans;
+    vector < vector < ll > > add, del; // each store quries indicies when add and delete for each edge
+    vector < array < ll, 2 > > edges;  // all distinct edges
+    map < array < ll, 2 >, ll > id;    // edge id
+    ll leaf_size, tree_size;
+    vector < Node > segData;
+
+    OfflineDynamicConnectivity(ll _n, ll _q)
+    {
+        n = _n; q = _q;
+
+        d.init(n);
+
+        add.assign(q, {});
+        del.assign(q, {});
+        ans.assign(q, {});
+
+        leaf_size = 1;
+        while(leaf_size < q + 1) leaf_size *= 2;
+        tree_size = 2 * leaf_size;
+        segData.resize(tree_size, Node());
+    }
+
+    void set(ll l, ll r, ll idx, ll ni, ll lx, ll rx)
+    {
+        if(lx >= r || rx <= l) return;
+
+        if(l <= lx && rx <= r)
+        {
+            segData[ni].change(idx);
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+        set(l, r, idx, lf, lx, mid);
+        set(l, r, idx, ri, mid, rx);
+    }
+    void set(ll l, ll r, ll idx) { set(l, r, idx, 0, 0, leaf_size); }
+
+    void dfs(ll ni, ll lx, ll rx)
+    {
+        d.checkpoint();
+
+        for(const auto &i : segData[ni].v)
+            d.merge(edges[i][0], edges[i][1]);
+
+        if(rx - lx == 1)
+        {
+            if(lx < q) ans[lx] = d.cnt;
+            d.undo();
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+        dfs(lf, lx, mid);
+        dfs(ri, mid, rx);
+
+        d.undo();
+    }
+    void dfs() { dfs(0, 0, leaf_size); }
+
+
+    ll getId(ll u, ll v)
+    {
+        if(u > v) swap(u, v);
+
+        if(id.find({u, v}) == id.end())
+        {
+            id[{u, v}] = (ll)edges.size();
+            edges.push_back({u, v});
+        }
+
+        return id[{u, v}];
+    }
+
+    void addEdge(ll u, ll v, ll i) { add[getId(u, v)].push_back(i); }
+
+    void deleteEdge(ll u, ll v, ll i) { del[getId(u, v)].push_back(i); }
+
+    void addQuery(ll i) { queries.push_back(i);  }
+
+    vector < ll > build()
+    {
+
+        // // it doesn't work when we can an edge multiple times, and when delete, we delete only one occurance not all
+        //  for(ll i = 0; i < (ll)edges.size(); i++)
+        //      del[i].push_back(q);
+        //
+        // for(ll i = 0; i < (ll)edges.size(); i++)
+        // {
+        //     for(const auto &l : add[i])
+        //     {
+        //         ll r = *lower_bound(all(del[i]), l) - 1;
+        //         set(l, r + 1, i);
+        //     }
+        // }
+
+        for(ll i = 0; i < (ll)edges.size(); i++)
+            while((ll)del[i].size() != (ll)add[i].size())
+                del[i].push_back(q);
+
+        for(ll i = 0; i < (ll)edges.size(); i++)
+        {
+            for(ll j = 0; j < (ll)add[i].size(); j++)
+            {
+                ll l = add[i][j];
+                ll r = del[i][j] - 1;
+                set(l, r + 1, i);
+            }
+        }
+
+        dfs();
+
+        vector < ll > tmp;
+        for(const auto &i : queries)
+            tmp.push_back(ans[i]);
+
+        return tmp;
+    }
+};
+
+void solve()
+{
+
+    ll n, q; cin >> n >> q;
+
+    OfflineDynamicConnectivity dc = OfflineDynamicConnectivity(n, q);
+
+    for(ll i = 0; i < q; i++)
+    {
+        char op; cin >> op;
+
+        if(op == '+')
+        {
+            ll u, v; cin >> u >> v;
+            dc.addEdge(u, v, i);
+        }
+        else if(op == '-')
+        {
+            ll u, v; cin >> u >> v;
+            dc.deleteEdge(u, v, i);
+        }
+        else
+        {
+            dc.addQuery(i);
+        }
+    }
+
+    vector < ll > ans = dc.build();
+    for(const auto &i : ans) cout << i << endl;
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                         Offline Dynamic Connectivity (Segment Tree + DSU with Rollbacks)                         */
+// This data structure answers connectivity queries in a graph where edges are added and removed over time (dynamic graph).
+// The queries are processed offline.
+// Time complexity is O((n + q) * log2(q)), Memory is O(q * log2(q))
+
+
+
+ll n, q;
+vector < ll > ans, isQuery;
+vector < array < ll, 2 > > edges;
+ll leaf_size, tree_size;
+vector < vector < ll > > segData;
+
+
+struct DSUrollback
+{
+    // variables
+    ll cnt;
+    stack < array < ll, 4 > > st;
+    vector < ll > parent, sz;
+
+    void init(ll n)
+    {
+        cnt = n;
+        parent.resize(n + 1); sz.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1;
+    }
+
+    ll find(ll u)
+    {
+        while(u != parent[u]) u = parent[u];
+        return u;
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+
+        st.push({-1, -1, -1, -1});
+        if(parent[u] == parent[v]) return 0;
+        st.pop();
+
+        if(sz[u] < sz[v]) swap(u, v);
+
+        st.push({u, sz[u], v, parent[v]});
+
+        parent[v] = u;
+        sz[u] += sz[v];
+        cnt--;
+
+        return 1;
+    }
+
+    void rollback()
+    {
+        auto it = st.top(); st.pop();
+
+        if(it[0] == -1 || it[0] == -2) return;
+
+        ll u = it[0], szu = it[1], v = it[2], pv = it[3];
+        parent[v] = pv;
+        sz[u] = szu;
+        cnt++;
+    }
+
+    void checkpoint()
+    {
+        st.push({-2, -2, -2, -2});
+    }
+
+    void undo()
+    {
+        while(!st.empty() && st.top()[0] != -2) rollback();
+        if(!st.empty()) st.pop();
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+} d;
+
+void _set(ll l, ll r, ll edgeIdx, ll ni, ll lx, ll rx)
+{
+    if(lx >= r || rx <= l) return;
+
+    if(l <= lx && rx <= r)
+    {
+        segData[ni].push_back(edgeIdx);
+        return;
+    }
+
+    ll mid = (lx + rx) / 2;
+    ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+    _set(l, r, edgeIdx, lf, lx, mid);
+    _set(l, r, edgeIdx, ri, mid, rx);
+}
+void _set(ll l, ll r, ll edgeIdx) { _set(l, r, edgeIdx, 0, 0, leaf_size); }
+
+void dfs(ll ni, ll lx, ll rx)
+{
+    d.checkpoint();
+
+    for(const auto &i : segData[ni])
+        d.merge(edges[i][0], edges[i][1]);
+
+    if(rx - lx == 1)
+    {
+        if(lx < q) ans[lx] = d.cnt;
+        d.undo();
+        return;
+    }
+
+    ll mid = (lx + rx) / 2;
+    ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+    dfs(lf, lx, mid);
+    dfs(ri, mid, rx);
+
+    d.undo();
+}
+void dfs() { dfs(0, 0, leaf_size); }
+
+
+void init()
+{
+    d.init(n);
+
+    ans.assign(q, -1);
+    edges.assign(q, {});
+    isQuery.assign(q, 0);
+
+    leaf_size = 1;
+    while(leaf_size < q + 1) leaf_size *= 2;
+    tree_size = 2 * leaf_size;
+    segData.assign(tree_size, {});
+}
+
+
+void solve()
+{
+
+    cin >> n >> q;
+    init();
+
+
+    map < array < ll, 2 >, ll > last, edgeIdx;
+    for(ll i = 0; i < q; i++)
+    {
+        char op; cin >> op;
+
+        if(op == '?')
+        {
+            isQuery[i] = 1;
+            continue;
+        }
+
+        ll u, v; cin >> u >> v;
+        if(u > v) swap(u, v);
+
+        if(!edgeIdx.contains({u, v}))
+        {
+            edges[i] = {u, v};
+            edgeIdx[{u, v}] = i;
+        }
+
+        if(last.contains({u, v}))
+        {
+            ll l = last[{u, v}], r = i - 1;
+            ll idx = edgeIdx[{u, v}];
+            _set(l, r + 1, idx);
+            last.erase({u, v});
+        }
+        else
+        {
+            last[{u, v}] = i;
+        }
+    }
+
+    for(const auto &i : last)
+    {
+        ll u = i.first[0], v = i.first[1];
+        ll l = i.second;
+        ll idx = edgeIdx[{u, v}];
+        ll r = q - 1;
+        _set(l, r + 1, idx);
+    }
+
+    dfs();
+
+    for(ll i = 0; i < q; i++)
+        if(isQuery[i])
+            cout << ans[i] << endl;
+
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// problem statement: given an array a(n), all elements are 0,
+// given q queries, each represent interval [l, r], where a[l..r] += x
+// calculate all possible a[i] could be formed when choosing any subset from the queries
+// https://codeforces.com/contest/981/problem/E
+
+const ll N = (ll)1e4 + 4;
+
+struct Node
+{
+    vector < ll > v;
+
+    Node() { }
+
+    void change(ll x)
+    {
+        v.push_back(x);
+    }
+};
+
+struct OfflineDynamicConnectivity
+{
+
+    ll n, q;
+    bitset < N > ans;
+    ll leaf_size, tree_size;
+    vector < Node > segData;
+
+    OfflineDynamicConnectivity(ll _n)
+    {
+        n = _n;
+
+        leaf_size = 1;
+        while(leaf_size < n + 1) leaf_size *= 2;
+        tree_size = 2 * leaf_size;
+        segData.resize(tree_size, Node());
+    }
+
+    void set(ll l, ll r, ll x, ll ni, ll lx, ll rx)
+    {
+        if(lx >= r || rx <= l) return;
+
+        if(l <= lx && rx <= r)
+        {
+            segData[ni].change(x);
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+        set(l, r, x, lf, lx, mid);
+        set(l, r, x, ri, mid, rx);
+    }
+    void set(ll l, ll r, ll x) { set(l, r, x, 0, 0, leaf_size); }
+
+    void dfs(ll ni, ll lx, ll rx, bitset < N > dp)
+    {
+        for(const auto &i : segData[ni].v)
+            dp |= (dp << i);
+
+        if(rx - lx == 1)
+        {
+            ans |= dp;
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+        dfs(lf, lx, mid, dp);
+        dfs(ri, mid, rx, dp);
+    }
+    void dfs()
+    {
+        bitset < N > dp;
+        dp[0] = 1;
+        dfs(0, 0, leaf_size, dp);
+    }
+
+    vector < ll > build()
+    {
+        dfs();
+
+        vector < ll > tmp;
+        for(ll i = 1; i <= n; i++)
+            if(ans[i]) tmp.push_back(i);
+
+        return tmp;
+    }
+};
+
+void solve()
+{
+
+    ll n, q; cin >> n >> q;
+
+    OfflineDynamicConnectivity dc = OfflineDynamicConnectivity(n);
+
+    for(ll i = 0; i < q; i++)
+    {
+        ll l, r, x; cin >> l >> r >> x;
+        dc.set(l, r + 1, x);
+    }
+
+    vector < ll > ans = dc.build();
+    cout << (ll)ans.size() << endl;
+    for(const auto &i : ans) cout << i << ' ';
+    cout << endl;
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

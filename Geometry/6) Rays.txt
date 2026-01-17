@@ -1,0 +1,159 @@
+//.................................................................................................................................................................................
+
+
+
+// squared distance
+T dist2(cT pt1, cT pt2 = {0, 0})
+{
+    T dx = fabsl(pt1.X - pt2.X);
+    T dy = fabsl(pt1.Y - pt2.Y);
+    return dx*dx + dy*dy;
+}
+
+// euclidean distance
+ld dist(cld pt1, cld pt2 = {0.0L, 0.0L})
+{
+    ld dx = fabsl(pt1.X - pt2.X);
+    ld dy = fabsl(pt1.Y - pt2.Y);
+    return (ld)sqrtl(dx*dx + dy*dy);
+    // return (ld)abs(pt1 - pt2);
+    // return (ld)sqrtl(dist2((T)pt1, (T)pt2));
+}
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cT v, cT w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cT v, cT w) { return v.X*w.Y - v.Y*w.X; }
+
+// get the perpendicular vector (rotated 90° anti-clockwise)
+cT perp(cT p) { return {-p.Y, p.X}; }
+
+// computes the orientation of the turn from point a → b → c
+// the sign of the cross product tells you the direction of the turn (orientation) between two vectors.
+// orient(a, b, c) = orient(b, c, a) = orient(c, a, b)
+// orient(a, b, c) > 0  left turn (c is left to ab)
+// orient(a, b, c) = 0  collinear (a, b, c lie on a line)
+// orient(a, b, c) < 0  right turn (c is right to ab)
+T orient(cT a, cT b, cT c) { return cross(b - a, c - a); } // ab cross ac
+
+struct Line
+{
+    cld v; // {b, -a}
+    T c;
+
+    // vector v & constant c
+    Line(cld v, T c) : v(v), c(c) { }
+
+    // ax + by = c
+    Line(T a, T b, T _c)
+    {
+        v = {b, -a};
+        c = _c;
+    }
+
+    // two points on the line (a → b)
+    Line(cld a, cld b)
+    {
+        v = b - a;
+        c = cross(v, a);
+    }
+
+    // return +ve if point p is left to the Line ab, -ve if right to the line, and 0 if on the line
+    T side(cld p) { return cross(v, p) - c; } // ax + by - c
+
+    // length of the perpendicular line of the point p on the line is: |ax + by - c| / sqrtl(a*a + b*b)
+    ld dist(cld p)   { return fabsl(side(p)) / abs(v); }
+    ld sqDist(cld p) { return side(p)*side(p) / (ld)dist2(v);} // dist * dist
+
+    // return a line passes through p and perpendicular on the line
+    Line perpLineThrough(cld p) { return {p, p + perp(p)}; }
+
+    // sorts points in the order of their projection along v.
+    // returns true, if Point p projection on the line lies before point q projection on the line.
+    bool cmpProjection(cld p, cld q) { return dot(v, q) - dot(v, p) > eps; } // > -eps if u want equality
+
+    // translates a line by a vector t
+    Line translate(cld t) { return {v, c + cross(v,t)}; }
+
+    // shifts the line to the left by a distance r (perpendicular to its direction)
+    Line shiftLeft(T r) { return {v, c + r*abs(v)}; }
+
+    // shifts the line to the right by a distance r (perpendicular to its direction)
+    Line shiftRight(T r) { return {v, c - r*abs(v)}; }
+
+    // computes the orthogonal projection point of a point p onto a line
+    cld projection(cld p) { return p - perp(v) * (ld)side(p) / (ld)dist2(v); }
+
+    // computes the reflection point of point p across a line
+    cld reflection(cld p) { return p - perp(v) * 2.0L * (ld)side(p) / (ld)dist2(v); }
+};
+
+// computes the intersection point of two lines
+pair < bool, cld > Lineintersection(Line l1, Line l2)
+{
+    T d = cross(l1.v, l2.v);
+    if(!sgn(d)) return {false, {}}; // or fabsl(d) < eps
+    return {true, (l2.v*(ld)l1.c - l1.v*(ld)l2.c) / (ld)d};
+}
+
+// computes an angle bisector of two (non-parallel) lines l1 and l2 is a line that forms equal angles with l1 and l2
+// interior = 1 means internal bisector, else external bisector
+// interior bisector is a line  whose direction vector points between the direction vectors of l1 and l2
+Line Linebisector(Line l1, Line l2, bool interior = 1)
+{
+    assert(sgn(cross(l1.v, l2.v)) != 0); // l1 and l2 cannot be parallel!
+    ld sign = interior? 1 : -1;
+    return {l2.v/abs(l2.v) + l1.v/abs(l1.v) * sign, l2.c/abs(l2.v) + l1.c/abs(l1.v) * sign};
+}
+
+
+
+
+/*                              Ray                              */
+// a ray is a part of a line that starts at a fixed point and extends infinitely in one direction.
+// u can scale the end point with oo and use it like a segment (usefull when dealing with rays)
+//
+
+
+
+// check if point p on ray ab
+bool onRay(cld a, cld b, cld p) { return !sgn(orient(p, a, b)) && sgn(dot(p - a, b - a)) > -1; }
+
+// computes the shortest distance from point p to the ray ab
+T pointRayDist(cld a, cld b, cld p)
+{
+    if(sgn(dot(p - a, b - a)) < 1) return abs(a - p);
+    return Line(a, b).dist(p);
+}
+
+// compute the intersection point of two rays
+// no intersection: 0, infinite: -1
+pair < ll, cld > rayIntersection(cld a1, cld b1, cld a2, cld b2)
+{
+    auto [flag, p] = Lineintersection(Line(a1, b1), Line(a2, b2));
+    if(flag == 0) return {0, {}};
+    if(flag == 1)
+    {
+        if(onRay(a1, b1, p) && onRay(a2, b2, p)) return {1, p};
+        return {0, {}};
+    }
+    if(onRay(a2, b2, a1) || onRay(a1, b1, a2)) return {-1, onRay(a2, b2, a1) ? a1 : a2};
+    return {0, {0, 0}};
+}
+
+// compute the distance between two rays a1b1 and a2b2
+T rayRayDist(cld a1, cld b1, cld a2, cld b2)
+{
+    if(rayIntersection(a1, b1, a2, b2).first) return 0;
+    return min(pointRayDist(a2, b2, a1), pointRayDist(a1, b1, a2));
+}
+
+
+
+//.................................................................................................................................................................................
+
+

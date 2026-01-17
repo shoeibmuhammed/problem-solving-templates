@@ -1,0 +1,128 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cld v, cld w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cld v, cld w) { return v.X*w.Y - v.Y*w.X; }
+
+
+
+/*                              Half Plane Intersection                              */
+// The half plane intersection is always a convex polygon.
+// every half-plane allows the region to the LEFT of its line.
+// Time complexity is O(n * log2(n))
+//
+// what can it do?
+// (1) solve inequalities.
+// (2) get the intersection of n polygons (represent each side in a polygon as a half-plane)
+// (3) get the kernal of a non-convex polygon
+// (4) binary search
+//
+
+
+
+struct halfPlane
+{
+
+    cld a, b; // Line represented as vector from point a to b (a --> b)
+    ld angle; // angle of the vector b with respect to x-axis
+
+    halfPlane() { }
+    halfPlane(const cld& _a, const cld& _b) : a(_a), b(_b - _a) { angle = atan2l(b.Y, b.X); }
+
+    bool in(const cld &p) const { return sgn(cross(b, p - a)) >= 0; } // left to ab
+    bool on(const cld &p) const { return sgn(cross(b, p - a)) == 0; } // on ab
+    bool out(const cld &p) { return sgn(cross(b, p - a)) == -1; } // right to ab
+
+    // comparator for sorting
+    bool operator < (const halfPlane  e) const { return angle < e.angle; }
+
+    // return the intersection point of two half-planes (It is assumed they're never parallel)
+    friend cld intersectionPoint(const halfPlane &s, const halfPlane &t)
+    {
+        ld alpha = cross((t.a - s.a), t.b) / cross(s.b, t.b);
+        return s.a + (s.b * alpha);
+    }
+
+    // chatGPT methods (not sure if correct 100%)
+    bool isParallel(const halfPlane &h) const { return sgn(cross(b, h.b)) == 0; }
+    bool issameDirection(const halfPlane &h) const { return isParallel(h) && sgn(dot(b, h.b)) > 0; }
+    ld signedDist(const cld& p) const { return cross(b, p - a) / abs(b); }
+    cld projectionPoint(const cld& p) const
+    {
+        cld dir = b / abs(b);
+        return a + dir * dot(p - a, dir);
+    }
+    ld angleBetweenHalfPlanes(const halfPlane& h) const { return acos(clamp(dot(b, h.b) / (abs(b) * abs(h.b)), -1.0L, 1.0L)); }
+    bool operator == (const halfPlane& h) const { return on(h.a) && issameDirection(h); }
+};
+
+
+
+// return the vertices of the convex polygon formed by the intersection of all the given half-planes in O(n * log2(n))
+vector < cld > halfPlaneIntersection(vector < halfPlane > H, ld inf)
+{
+    // bounding box in CCW order
+    cld box[4] = { cld(inf, inf), cld(-inf, inf), cld(-inf, -inf), cld(inf, -inf) };
+
+    // add bounding box half-plane
+    for(int i = 0; i < 4; i++)
+    {
+        halfPlane temp(box[i], box[(i + 1) % 4]);
+        H.push_back(temp);
+    }
+
+    // sort by angle and start algorithm
+    sort(all(H));
+    deque < halfPlane > dq;
+    ll len = 0;
+    for(int i = 0; i < (ll)H.size(); i++)
+    {
+        // remove from the back of the deque while last half-plane is redundant
+        while(len > 1 && H[i].out(intersectionPoint(dq[len - 2], dq[len - 1]))) { dq.pop_back(); len--; }
+
+        // remove from the front of the deque while first half-plane is redundant
+        while(len > 1 && H[i].out(intersectionPoint(dq[0], dq[1]))) { dq.pop_front(); len--; }
+
+        // special case check: parallel half planes
+        if(len > 0 && sgn(cross(H[i].b, dq[len - 1].b)) == 0)
+        {
+            // opposite parallel half-planes that ended up checked against each other
+            if(dot(H[i].b, dq[len - 1].b) < 0.0) return vector < cld >( );
+
+            // same direction half-plane: keep only the leftmost half-plane
+            if(H[i].out(dq[len - 1].a)) { dq.pop_back(); len--; }
+            else continue;
+        }
+
+        // add new half-plane
+        dq.push_back(H[i]);
+        len++;
+    }
+
+    // final cleanup: Check half-planes at the front against the back and vice-versa
+    while(len > 2 && dq[0].out(intersectionPoint(dq[len - 2], dq[len - 1]))) { dq.pop_back(); len--; }
+
+    while(len > 2 && dq[len - 1].out(intersectionPoint(dq[0], dq[1]))) { dq.pop_front(); len--; }
+
+    // report empty intersection if necessary
+    if(len < 3) return vector < cld >();
+
+    // reconstruct the convex polygon from the remaining half-planes
+    vector < cld > hull(len);
+    for(ll i = 0; i < len; i++) hull[i] = intersectionPoint(dq[i], dq[(i + 1) % len]);
+
+    return hull;
+}
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

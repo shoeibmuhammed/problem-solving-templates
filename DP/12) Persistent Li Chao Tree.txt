@@ -1,0 +1,189 @@
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      Persistent Li Chao Tree                                      */
+// insert & eval in O(log(range)), rollback (undoes the most recent insertion) in O(1).
+// lines can be added in any slope order, x-values can also be queried in any order.
+// it's max, to make it min --> plc.add_line(-m, -c), -plc.eval(x)
+//
+// problems: https://codeforces.com/group/Rilx5irOux/contest/572352/problem/E.
+
+
+//------------------------
+
+
+// Max Dynamic Persistent LiChao Tree
+// it does not scale well to very large domains.
+// insert & eval in O(2*N), rollback (undoes the most recent insertion) in O(2*N).
+
+
+struct PersistentLiChaoTree
+{
+    typedef pair < ll, ll > point;
+
+    static const ll N = 1e6 + 9; // range of x value [-N, N]
+    static const ll M = 1e5 + 5; // max number of rollback
+
+    point line[(N + 3) << 3];      // Store the lines
+    ll w[M];                       // Stack width for rollback
+    pair < ll, point > st[M][21];  // Stack for rollback
+    ll p = 0;                      // Current rollback stack pointer
+
+    ll f(point a, ll X) { return 1LL * a.first * X + (ll)a.second; }
+
+    void insert_line(ll m, ll c, ll v = 1, ll l = -N, ll r = N)
+    {
+        point nw = {m, c};
+
+        ll _m = (l + r) / 2;
+        bool lef = f(nw, l) > f(line[v], l);     // > for max, < for min
+        bool mid = f(nw, _m) > f(line[v], _m);   // > for max, < for min
+        if(mid)
+        {
+            st[p][w[p]++] = {v, line[v]};
+            swap(line[v], nw);
+        }
+
+        if(r - l == 1) return;
+
+        if(lef != mid) insert_line(nw.first, nw.second, 2 * v, l, _m);
+        else insert_line(nw.first, nw.second, 2 * v + 1, _m, r);
+    }
+
+    ll eval(ll X, ll v = 1, ll l = -N, ll r = N)
+    {
+        ll m = (l + r) / 2;
+        if (r - l == 1) return f(line[v], X);
+        if (X < m) return max(f(line[v], X), eval(X, 2 * v, l, m)); // max() for max, min() for min
+        else return max(f(line[v], X), eval(X, 2 * v + 1, m, r));   // max() for max, min() for min
+    }
+
+    void rollback()
+    {
+        while(w[p] > 0)
+        {
+            w[p]--;
+            auto& [v, linev] = st[p][w[p]];
+            line[v] = linev;
+        }
+        p--;
+    }
+
+    void begin_session() // before evey insertion
+    {
+        p++;
+        w[p] = 0;
+    }
+
+    void clear() // before start
+    {
+        fill(line, line + ((N + 3) << 3), point(0, -1e18)); // -1e18 for max, 1e18 for min
+        p = 0;
+    }
+};
+
+
+//----------------------------------------
+
+
+// Max Dynamic Persistent LiChao Tree
+// it scales well to very large domains (dynamic).
+// insert & eval in O(log(R - L + 1)), pop_back() (undoes the most recent insertion) in O(1).
+
+
+ll T;
+const ll mxLines = 1e5 + 9; // excpected number of lines
+
+struct Line
+{
+    ll m, c;
+    ll subs(ll x) { return m * x + c; }
+};
+
+struct LiChaoNode
+{
+    Line line;
+    int l, r;
+    LiChaoNode()
+    {
+        line = Line({0, numeric_limits<long long>::max() / 2});
+        l = 0, r = 0;
+    }
+    LiChaoNode(Line line) : line(line), l(0), r(0) {}
+} t[50 * mxLines];
+
+ll upd(ll pre, Line nw, ll l, ll r)
+{
+    ll m = (l + r) / 2;
+    ll id = ++T;
+    t[id].line = t[pre].line;
+    bool lef = nw.subs(l) < t[id].line.subs(l);
+    bool mid = nw.subs(m) < t[id].line.subs(m);
+    if(mid) swap(t[id].line, nw);
+    if(l == r) return id;
+    if(lef != mid)
+    {
+        if(!t[pre].l) t[id].l = ++T, t[T] = LiChaoNode(nw);
+        else t[id].l = upd(t[pre].l, nw, l, m);
+        t[id].r = t[pre].r;
+    }
+    else
+    {
+        if(!t[pre].r) t[id].r = ++T, t[T] = LiChaoNode(nw);
+        else t[id].r = upd(t[pre].r, nw, m + 1, r);
+        t[id].l = t[pre].l;
+    }
+    return id;
+}
+
+ll query(ll cur, ll x, ll l, ll r)
+{
+    ll val = t[cur].line.subs(x);
+    ll m = (l + r) / 2;
+    if(l < r)
+    {
+        if(x <= m && t[cur].l) val = min(val, query(t[cur].l, x, l, m));
+        if(x > m && t[cur].r) val = min(val, query(t[cur].r, x, m + 1, r));
+    }
+    return val;
+}
+
+struct PersistentLiChaoTree
+{
+    ll L, R;
+    vector < ll > roots;
+    PersistentLiChaoTree()
+    {
+        roots = {1};
+        T = 1;
+        L = -1e9;
+        R = 1e9;
+    }
+    PersistentLiChaoTree(ll L, ll R) : L(L), R(R)
+    {
+        T = 1;
+        roots.push_back(1);
+    }
+
+    // Insert a new line and create a new version of the tree.
+    void insert_line(Line line)
+    {
+        ll root = upd(roots.back(), line, L, R);
+        roots.push_back(root);
+    }
+
+    // Evaluate the minimum y-value at point x in version `i` of the tree.
+    ll eval(ll i, ll x) { return query(roots[i], x, L, R); }
+} plc;
+
+
+
+// T = 0;
+// plc = PersistentLiChaoTree((ll) -1e9 - 9, (ll)1e9 + 9);
+// plc.insert_line({pr[root], bonus[root]});
+// plc.eval((ll)plc.roots.size() - 1, x);
+// plc.roots.pop_back();
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

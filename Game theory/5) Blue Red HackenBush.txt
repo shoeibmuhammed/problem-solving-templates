@@ -1,0 +1,141 @@
+
+
+
+
+/*                              Blue Red HackenBush                              */
+// Partisan game.
+// the game is played on a rooted tree with root = 1, each edge is colored either Blue or Red:
+// * Blue edges can only be cut by the Blue player (Left).
+// * Red edges can only be cut by the Red player (Right).
+// a move consists of cutting one of your own colored edges,
+// when an edge is cut, the entire component that disconnects from the root (vertex 1) falls away (is removed).
+// players alternate turns; if you cannot move, you lose.
+//
+
+
+const ll N = (ll)5e5 + 5;
+
+struct surreal
+{
+    ll val, w; // val = integer part
+    map < ll, ll > frac; // fraction part
+
+    void clear()
+    {
+        frac.clear();
+        val = w = 0;
+    }
+    surreal() { clear(); }
+
+    void add(ll x)
+    {
+        frac[x]++;
+        auto it = frac.find(x);
+        while(it != frac.end() && it->second != 1)
+        {
+            if(it->second > 1)
+            {
+                frac[it->first + 1] += it->second >> 1;
+                it->second &= 1;
+            }
+            auto it1 = it;
+            it++;
+            if(!it1->second) frac.erase(it1);
+        }
+    }
+
+    // n = n/(1 << x)
+    void divide(ll x)
+    {
+        for(ll i = 0; i < x; i++)
+        {
+            if(!val) break;
+            if(val & 1) add(i - w);
+            val >>= 1;
+        }
+        w -= x;
+    }
+    inline void operator +=(surreal x)
+    {
+        val += x.val;
+        for (auto it2 = x.frac.begin(); it2 != x.frac.end(); ++it2)
+            if (it2->second) add(it2->first + x.w - w);
+        while (!frac.empty() && frac.rbegin()->first + w >= 0) {
+            if (frac.rbegin()->second) val += 1 << (frac.rbegin()->first + w);
+            frac.erase(--frac.end());
+        }
+    }
+    void solve0()
+    {
+        ll p = max(1ll, 1ll - val);
+        if (frac.empty() && p + val == 1) ++p;
+        val += p;
+        divide(p - 1);
+    }
+    void solve1()
+    {
+        ll p = max(1ll, 1ll + val);
+        if(val - p == -1) ++p;
+        val -= p;
+        divide(p - 1);
+    }
+} a[N];
+
+ll id[N], vis[N];
+vector < pair < ll, ll > > graph[N];
+void hackenbush(ll u)
+{
+    vis[u] = 1;
+    for(const auto &[v, c] : graph[u])
+    {
+        if(vis[v]) continue;
+        hackenbush(v);
+
+        if(c == 0) a[id[v]].solve0();
+        else a[id[v]].solve1();
+
+        if(a[id[v]].frac.size() > a[id[u]].frac.size()) swap(id[v], id[u]);
+
+        a[id[u]] += a[id[v]];
+        a[id[v]].clear();
+    }
+}
+
+
+void solve()
+{
+
+    ll n; cin >> n;
+    for(ll i = 1; i <= n; i++) graph[i].clear(), id[i] = i, vis[i] = 0, a[i].clear();
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v, c; cin >> u >> v >> c; // c=0 (blue), c=1(red)
+        graph[u].push_back({v, c});
+        graph[v].push_back({u, c});
+    }
+
+    hackenbush(1);
+
+    // if blue starts first, if red starts first
+    if(a[id[1]].val > 0)
+    {
+        cout << "blue blue" << endl;
+    }
+    else if(a[id[1]].val < 0)
+    {
+        cout << "red red" << endl;
+    }
+    else if((ll)a[id[1]].frac.size())
+    {
+        cout << "blue blue" << endl;
+    }
+    else
+    {
+        cout << "red blue" << endl;
+    }
+
+
+
+
+    return;
+}

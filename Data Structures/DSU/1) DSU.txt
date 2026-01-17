@@ -1,0 +1,110 @@
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         DSU (Disjoint Set Union)                         */
+// 1-indexed
+// time complexity is O(α(n)) ≈ O(4)
+//
+// tricks: 1) begin from end (https://codeforces.com/edu/course/2/lesson/7/2/practice/contest/289391/problem/B).
+//         2) u can always make the root the biggest one
+//         3) MST (Minimum Spanning Tree) --> Kruskal's algorithm --> DSU + PQ
+//
+
+
+
+struct DSU
+{
+    // variables
+    ll cnt;
+    vector < ll > parent, sz;
+
+    void init(ll n)
+    {
+        cnt = n;
+        parent.resize(n + 1); sz.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1;
+    }
+
+    ll find(ll u)
+    {
+        if(u == parent[u]) return u;
+        return parent[u] = find(parent[u]);
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+
+        if(parent[u] == parent[v]) return 0;
+
+        if(sz[u] < sz[v]) swap(u, v);
+
+        parent[v] = u;
+        sz[u] += sz[v];
+        cnt--;
+
+        return 1;
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+};
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// DSU + check Bipartite
+struct DSU
+{
+    // variables
+    ll cnt, isBipartite;
+    vector < ll > parent, sz, dist;
+
+    void init(ll n)
+    {
+        cnt = n; isBipartite = 1;
+        parent.resize(n + 1); sz.resize(n + 1); dist.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1, dist[i] = 0;
+    }
+
+    ll find(ll u)
+    {
+        if(u == parent[u]) return u;
+        ll p = parent[u];
+        ll r = find(p);
+        dist[u] ^= dist[p];
+        return parent[u] = r;
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+
+        if(parent[u] == parent[v])
+        {
+            if(dist[_u] % 2 == dist[_v] % 2) isBipartite = 0;
+            return 0;
+        }
+
+        if(sz[u] < sz[v]) swap(u, v);
+
+        cnt--;
+        parent[v] = u;
+        sz[u] += sz[v];
+        dist[v] = dist[_u] ^ dist[_v] ^ 1;
+
+        return 1;
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+};
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

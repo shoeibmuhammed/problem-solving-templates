@@ -1,0 +1,106 @@
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      DP Digit (Decimal)                                        */
+// count the number of integers between a and b where no two adjacent digits are the same (https://cses.fi/problemset/task/2220/).
+
+
+ll n;
+string a, b;
+
+ll dp[20][2][2][11];
+ll slv(ll l, ll eqA, ll eqB, ll last)
+{
+    if(l == n) return 1;
+
+    ll &ret = dp[l][eqA][eqB][last];
+    if(ret != -1) return ret;
+    ret = 0;
+
+    ll LowerLimit = (eqA ? (a[l] - '0') : 0), UpperLimit = (eqB ? (b[l] - '0') : 9);
+    for(ll i = LowerLimit; i <= UpperLimit; i++)
+    {
+        if(last == 10 && i == 0) ret += slv(l + 1, (i == LowerLimit ? eqA : 0), (i == UpperLimit ? eqB : 0), last);
+        else if(i != last) ret += slv(l + 1, (i == LowerLimit ? eqA : 0), (i == UpperLimit ? eqB : 0), i);
+    }
+
+
+    return ret;
+}
+
+void solve()
+{
+    cin >> a >> b;
+    a = string((ll)b.size() - (ll)a.size(), '0') + a;
+    n = (ll)a.size();
+
+    mem(dp, -1);
+    cout << slv(0, 1, 1, 10) << endl;
+
+    return;
+}
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      DP Digit (Binary)                                      */
+// count the number of integers between a and b where the number of ones in binary representation is prime number.
+// get the k'th funny number, where funny number is a number it's binary representation contains prime numbers of ones
+// (https://codeforces.com/group/Rilx5irOux/contest/530044/problem/N).
+
+
+// check if a number is prime or not in O(sqrt(n))
+ll isprime(ll n) { if(n == 0 || n == 1) { return 0; } for(ll i = 2; i * i <= n; i++) { if(n % i == 0) return 0; } return 1; }
+
+bitset < 61 > a, b;
+
+ll dp[61][2][2][61];
+ll slv(ll l, ll eqA, ll eqB, ll sm)
+{
+    if(l == -1) return isprime(sm);
+
+    ll &ret = dp[l][eqA][eqB][sm];
+    if(ret != -1 && !eqA && !eqB) return ret;
+    ret = 0;
+
+    ll LowerLimit = (eqA ? a[l] : 0), UpperLimit = (eqB ? b[l] : 1);
+    for(ll i = LowerLimit; i <= UpperLimit; i++)
+    {
+        ret += slv(l - 1, (i == LowerLimit ? eqA : 0), (i == UpperLimit ? eqB : 0), sm + i);
+    }
+
+
+    return ret;
+}
+
+void solve()
+{
+
+
+    // ll x, y; cin >> x >> y;
+    // a = x; b = y;
+    // mem(dp, -1);
+    // cout << slv(60, 1, 1, 0) << endl;
+
+
+
+    mem(dp, -1);
+    ll k; cin >> k;
+    ll l = 0, r = oo, m;
+    while(l < r) // ... f f (t) t ...
+    {
+        m = l + (r - l)/2;
+        // mem(dp, -1);
+        a = 0; b = m;
+        if(slv(60, 1, 1, 0) >= k) r = m;
+        else l = m + 1;
+    }
+    cout << l << endl;
+
+
+    return;
+}
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

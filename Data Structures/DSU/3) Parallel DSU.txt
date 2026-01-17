@@ -1,0 +1,223 @@
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// Parallel DSU trick
+struct DSU
+{
+    // variables
+    ll cnt;
+    vector < ll > parent, sz;
+
+    void init(ll n)
+    {
+        cnt = n;
+        parent.resize(n + 1); sz.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1;
+    }
+
+    ll find(ll u)
+    {
+        if(u == parent[u]) return u;
+        return parent[u] = find(parent[u]);
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+
+        if(parent[u] == parent[v]) return 0;
+
+        if(sz[u] < sz[v]) swap(u, v);
+
+        parent[v] = u;
+        sz[u] += sz[v];
+        cnt--;
+
+        return 1;
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+};
+
+
+void solve()
+{
+
+    ll n, m; cin >> n >> m;
+
+    vector < DSU > layer(20);
+    for(ll i = 0; i < 20; i++) layer[i].init(n);
+
+
+    for(ll i = 1; i <= m; i++)
+    {
+        ll l1, l2, sz; cin >> l1 >> l2 >> sz;
+        ll r1 = l1 + sz - 1, r2 = l2 + sz - 1;
+
+        // s[l1...r1] = s[l2....r2]
+
+        ll p = __lg(sz);
+        layer[p].merge(l1, l2);
+        layer[p].merge(r1 - (1ll << p) + 1, r2 - (1ll << p) + 1);
+    }
+
+    for(ll i = 19; i >= 1; i--)
+    {
+        for(ll j = 1; j <= n; j++)
+        {
+            ll root = layer[i].find(j);
+
+            if(root + (1ll << (i - 1)) > n || j + (1ll << (i - 1)) > n) break; // continue;
+
+            layer[i - 1].merge(root, j);
+            layer[i - 1].merge(root + (1ll << (i - 1)), j + (1ll << (i - 1)));
+        }
+    }
+
+    ll res = 1;
+    for(ll i = 1; i <= n; i++)
+    {
+        if(i == layer[0].find(i))
+        {
+            res *= 26;
+            res %= mod;
+        }
+    }
+    cout << res << endl;
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+struct DSU
+{
+    // variables
+    ll cnt;
+    vector < ll > parent, sz;
+
+    void init(ll n)
+    {
+        cnt = n;
+        parent.resize(n + 1); sz.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1;
+    }
+
+    ll find(ll u)
+    {
+        if(u == parent[u]) return u;
+        return parent[u] = find(parent[u]);
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+
+        if(parent[u] == parent[v]) return 0;
+
+        if(sz[u] < sz[v]) swap(u, v);
+
+        parent[v] = u;
+        sz[u] += sz[v];
+        cnt--;
+
+        return 1;
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+};
+
+
+void solve()
+{
+
+    ll n, m; cin >> n >> m;
+    string s; cin >> s;
+    string t = s;
+    reverse(all(t));
+    s += t;
+    n *= 2;
+    s = ' ' + s;
+
+    vector < DSU > layer(20);
+    for(ll i = 0; i < 20; i++) layer[i].init(n);
+
+    for(ll i = 1; i <= n/2; i++)
+        layer[0].merge(i, n - i + 1);
+
+    for(ll i = 1; i <= m; i++)
+    {
+        ll l, r; cin >> l >> r;
+        ll lx = n - r + 1, rx = n - l + 1;
+
+        // s[l...r] = s[lx....rx]
+
+        ll sz = r - l + 1;
+        ll p = __lg(sz);
+        layer[p].merge(l, lx);
+        layer[p].merge(r - (1ll << p) + 1, rx - (1ll << p) + 1);
+    }
+
+    for(ll i = 19; i >= 1; i--)
+    {
+        for(ll j = 1; j <= n; j++)
+        {
+            ll root = layer[i].find(j);
+
+            if(root + (1ll << (i - 1)) > n || j + (1ll << (i - 1)) > n) break; // continue;
+
+            layer[i - 1].merge(root, j);
+            layer[i - 1].merge(root + (1ll << (i - 1)), j + (1ll << (i - 1)));
+        }
+    }
+
+    vector < set < char > > st(n + 1);
+    vector < ll > cnt(n + 1);
+
+    for(ll i = 1; i <= n; i++)
+    {
+        ll root = layer[0].find(i);
+
+        cnt[root]++;
+
+        if(s[i] != '?') st[root].insert(s[i]);
+
+        if((ll)st[root].size() == 2)
+        {
+            cout << 0 << endl;
+            return;
+        }
+    }
+
+    ll res = 1;
+    for(ll i = 1; i <= n; i++)
+    {
+        if(cnt[i] && st[i].empty())
+        {
+            res *= 2;
+            res %= mod;
+        }
+    }
+    cout << res << endl;
+
+
+
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

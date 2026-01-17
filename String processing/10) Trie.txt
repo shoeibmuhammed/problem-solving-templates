@@ -1,0 +1,422 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*              Trie (Prefix Tree)              */
+// usefull when dealing with a lot of strings (multiple string lookups),
+// efficient insertion, deletion, counting, search for specific property, ...
+// the time complexity of all operations is O(n), where n is the length of the string being processed.
+// if MLE --> remove useless variables.
+// try to draw on a paper, and see information stored in each node.
+
+// ....................
+
+const ll mx_sz = 26;
+const char _ref = 'a'; // 'a', 'A', '0'
+
+// ....................
+
+struct Trie
+{
+    struct Node
+    {
+        Node *ch[mx_sz];
+        ll freq, end;
+        Node() { mem(ch, 0); freq = end = 0; }
+    };
+
+    Node *root;
+    Trie() { root = new Node(); }
+
+    void insert(const string &s) // insert a new string
+    {
+        Node *curr = root;
+        for(const auto &c : s)
+        {
+            ll idx = (ll)(c - _ref);
+            if(!curr->ch[idx]) curr->ch[idx] = new Node();
+            curr = curr->ch[idx];
+            curr->freq++;
+        }
+        curr->end++;
+    }
+
+    void erase(const string &s, ll depth, Node *curr) // erase a string
+    {
+        if(depth == (ll)s.size()) { curr->end--; return; }
+
+        ll idx = (ll)(s[depth] - _ref);
+
+        erase(s, depth + 1, curr->ch[idx]);
+
+        curr->ch[idx]->freq--;
+        if(!curr->ch[idx]->freq)
+        {
+            delete curr->ch[idx];
+            curr->ch[idx] = nullptr;
+        }
+    }
+    void erase(const string &s) { if(count(s)) erase(s, 0, root); }
+
+    ll count(const string &s) // count exact string
+    {
+        Node *curr = root;
+        for(const auto &c : s)
+        {
+            ll idx = (ll)(c - _ref);
+            if(!curr->ch[idx]) return 0;
+            curr = curr->ch[idx];
+        }
+        return curr->end;
+    }
+
+    ll count_prefix(const string &s) // count prefix of the string
+    {
+        Node *curr = root;
+        for(const auto &c : s)
+        {
+            ll idx = (ll)(c - _ref);
+            if(!curr->ch[idx]) return 0;
+            curr = curr->ch[idx];
+        }
+        return curr->freq;
+    }
+
+    // more methods ...
+
+};
+
+// ....................
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*              Binary Trie              */
+// usefull when dealing with a lot of binary numbers (we can move over all numbers in the same time).
+// efficient insertion, deletion, counting, search for specific property (<, >, =, min, max, xor, ...), ...
+// start from msb -to-> lsb.
+// the time complexity of all operations is O(n), where n is the number of bits in the number being processed.
+// if MLE --> remove useless variables.
+// try to draw on a paper, and see information stored in each node.
+
+// ....................
+
+const ll mx_sz = 2, Bits = 30;
+
+// ....................
+
+struct Binary_Trie
+{
+    struct Node
+    {
+        Node *ch[mx_sz];
+        ll freq, end;
+        Node() { mem(ch, 0); freq = end = 0; }
+    };
+
+    Node *root;
+    Binary_Trie() { root = new Node(); }
+
+    void insert(const ll &x) // insert a new number
+    {
+        Node *curr = root;
+        for(ll bit = Bits; bit >= 0; bit--)
+        {
+            ll idx = ((x >> bit) & 1ll);
+            if(!curr->ch[idx]) curr->ch[idx] = new Node();
+            curr = curr->ch[idx];
+            curr->freq++;
+        }
+        curr->end++;
+    }
+
+    void erase(const ll &x, ll bit, Node *curr) // erase a number
+    {
+        if(bit < 0){ curr->end--; return; }
+
+        ll idx = ((x >> bit) & 1ll);
+
+        erase(x, bit - 1, curr->ch[idx]);
+
+        curr->ch[idx]->freq--;
+        if(!curr->ch[idx]->freq)
+        {
+            delete curr->ch[idx];
+            curr->ch[idx] = nullptr;
+        }
+    }
+    void erase(const ll &x) { if(count(x)) erase(x, Bits, root); }
+
+    ll count(const ll &x) // count exact number
+    {
+        Node *curr = root;
+        for(ll bit = Bits; bit >= 0; bit--)
+        {
+            ll idx = ((x >> bit) & 1ll);
+            if(!curr->ch[idx]) return 0;
+            curr = curr->ch[idx];
+        }
+        return curr->end;
+    }
+
+    ll count_prefix(const ll &x) // count prefix of the number
+    {
+        Node *curr = root;
+        for(ll bit = Bits; bit >= 0; bit--)
+        {
+            ll idx = ((x >> bit) & 1ll);
+            if(!curr->ch[idx]) return 0;
+            curr = curr->ch[idx];
+        }
+        return curr->freq;
+    }
+
+    // more methods ...
+    ll query(const ll &x) // return the max XOR
+    {
+        Node *curr = root;
+        ll ret = 0;
+        for(ll bit = Bits; bit >= 0; bit--)
+        {
+            ll idx = ((x >> bit) & 1ll);
+
+            if(curr->ch[idx ^ 1])
+            {
+                ret += (1ll << bit);
+                curr = curr->ch[idx ^ 1];
+            }
+            else
+            {
+                curr = curr->ch[idx];
+            }
+        }
+        return ret;
+    }
+
+};
+
+// ....................
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*              Decimal Trie (long long)             */
+// usefull when dealing with a lot of decimal numbers (we can move over all numbers in the same time).
+// efficient insertion, deletion, counting, search for specific property (<, >, =, min, max, xor, ...), ...
+// start from msb -to-> lsb.
+// the time complexity of all operations is O(n), where n is the length of the number being processed.
+// if MLE --> remove useless variables.
+// try to draw on a paper, and see information stored in each node.
+
+// ....................
+
+const ll mx_sz = 21; // number of digits
+
+// ....................
+
+ll pw[mx_sz];
+void pre_process()
+{
+    pw[0] = 1;
+    for(ll i = 1; i < mx_sz; i++)
+    {
+        pw[i] = pw[i - 1] * 10ll;
+    }
+}
+
+// ....................
+
+struct Decimal_Trie
+{
+    struct Node
+    {
+        Node *ch[mx_sz];
+        ll freq, end;
+        Node() { mem(ch, 0); freq = end = 0; }
+    };
+
+    Node *root;
+    Decimal_Trie() { root = new Node(); }
+
+    void insert(const ll &x) // insert a new number
+    {
+        Node *curr = root;
+        for(ll i = mx_sz - 1; i >= 0; i--)
+        {
+            ll idx = (ll)((x / pw[i]) % 10ll);
+            if(!curr->ch[idx]) curr->ch[idx] = new Node();
+            curr = curr->ch[idx];
+            curr->freq++;
+        }
+        curr->end++;
+    }
+
+    void erase(const ll &x, ll depth, Node *curr) // erase a number
+    {
+        if(depth < 0) { curr->end--; return; }
+
+        ll idx = (ll)((x / pw[depth]) % 10ll);
+
+        erase(x, depth - 1, curr->ch[idx]);
+
+        curr->ch[idx]->freq--;
+        if(!curr->ch[idx]->freq)
+        {
+            delete curr->ch[idx];
+            curr->ch[idx] = nullptr;
+        }
+    }
+    void erase(const ll &x) { if(count(x)) erase(x, mx_sz - 1, root); }
+
+    ll count(const ll &x) // count exact number
+    {
+        Node *curr = root;
+        for(ll i = mx_sz - 1; i >= 0; i--)
+        {
+            ll idx = (ll)((x / pw[i]) % 10ll);
+            if(!curr->ch[idx]) curr->ch[idx] = new Node();
+            curr = curr->ch[idx];
+        }
+        return curr->end;
+    }
+
+    ll count_prefix(const ll &x) // count prefix of a number
+    {
+        Node *curr = root;
+        for(ll i = mx_sz - 1; i >= 0; i--)
+        {
+            ll idx = (ll)((x / pw[i]) % 10ll);
+            if(!curr->ch[idx]) return 0;
+            curr = curr->ch[idx];
+        }
+        return curr->freq;
+    }
+
+    // more methods ...
+    ll query(const ll &x) // count numbers < x
+    {
+        Node *curr = root;
+        ll ret = 0;
+        for(ll i = mx_sz - 1; i >= 0; i--)
+        {
+            ll idx = (ll)((x / pw[i]) % 10ll);
+            for(ll j = 0; j <= 9; j++)
+            {
+                if(j < idx && curr->ch[j]) // take all
+                {
+                    ret += curr->ch[j]->freq;
+                }
+            }
+            if(!curr->ch[idx]) break;
+            curr = curr->ch[idx];
+        }
+        return ret;
+    }
+
+};
+
+pre_process();
+
+// ....................
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*              Vector Trie              */
+
+// ....................
+
+const ll mx_sz = 10 + 1; // max number (not big)
+
+// ....................
+
+struct Vector_Trie
+{
+    struct Node
+    {
+        Node *ch[mx_sz];
+        ll freq, end;
+        Node() { mem(ch, 0); freq = end = 0; }
+    };
+
+    Node *root;
+    Vector_Trie() { root = new Node(); }
+
+    void insert(const vector < ll > &a) // insert a new vector
+    {
+        Node *curr = root;
+
+        for(ll i = 0; i < (ll)a.size(); i++)
+        {
+            ll idx = a[i];
+            if(!curr->ch[idx]) curr->ch[idx] = new Node();
+            curr = curr->ch[idx];
+            curr->freq++;
+        }
+        curr->end++;
+    }
+
+    void erase(const vector < ll > &a, ll depth, Node *curr) // erase a vector
+    {
+        if(depth == (ll)a.size()) { curr->end--; return; }
+
+        ll idx = a[depth];
+
+        erase(a, depth + 1, curr->ch[idx]);
+
+        curr->ch[idx]->freq--;
+        if(!curr->ch[idx]->freq)
+        {
+            delete curr->ch[idx];
+            curr->ch[idx] = nullptr;
+        }
+    }
+    void erase(const vector < ll > &a) { if(count(a)) erase(a, 0, root); }
+
+    ll count(const vector < ll > &a) // count exact vector
+    {
+        Node *curr = root;
+        for(ll i = 0; i < (ll)a.size(); i++)
+        {
+            ll idx = a[i];
+            if(!curr->ch[idx]) return 0;
+            curr = curr->ch[idx];
+        }
+        return curr->end;
+    }
+
+    ll count_prefix(const vector < ll > &a) // count prefix of a vector
+    {
+        Node *curr = root;
+        for(ll i = 0; i < (ll)a.size(); i++)
+        {
+            ll idx = a[i];
+            if(!curr->ch[idx]) return 0;
+            curr = curr->ch[idx];
+        }
+        return curr->freq;
+    }
+
+    // more methods ...
+    ll query(const vector < ll > &a) // get the max common prefix
+    {
+        Node *curr = root;
+
+        for(ll i = 0; i < (ll)a.size(); i++)
+        {
+            ll idx = a[i];
+            if(!curr->ch[idx]) return i;
+            curr = curr->ch[idx];
+        }
+        return (ll)a.size();
+    }
+
+};
+
+
+// ....................
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

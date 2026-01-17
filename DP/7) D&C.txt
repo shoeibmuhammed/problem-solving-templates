@@ -1,0 +1,185 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      D&C optimization                                      */
+// DP optimization from O(K * N^2) to O(K * N * log2(N)).
+//
+// DP form  dp[k, i] = min(C(i, j) + dp[k - 1, j + 1]), where i <= j <= n.
+//
+// Condition  opt[k, i - 1] <= opt[k, i] <= opt[k, i + 1] [monotonicity], or
+// given a <= b <= c <= d, C(a, c) + C(b, d) <= C(a, d) + C(b, c) [QI].
+//
+//
+// Keywords: 1) Divide into k subarrays.
+//           2) without k  (https://atcoder.jp/contests/arc067/submissions/66201498).
+//
+// Tricks:
+//         1) u can remove k from slv()  memory optimizations (https://codeforces.com/contest/833/submission/318631252).
+//         2) pre, prei, suff, suffi tricks (very important)  (https://cses.fi/problemset/task/2087), (https://vjudge.net/problem/HackerRank-mining).
+//         3) Mo trick  (https://codeforces.com/contest/833/problem/B).
+//         4) u can try move from right to left and use j <= min(optr, mid)  got AC! (https://codeforces.com/contest/868/problem/F)  don't care.
+//         5) when i change dp[2][35005] to dp[2][35009] i got AC!  (https://codeforces.com/contest/1527/submission/318677744)  try trick 4 if got WA  don't care.
+//         6) if said subsequence not subarray  sorting is the greedy part  (https://vjudge.net/problem/Gym-101242B).
+//         7) take care from this case ... mid (...) optl ... optr, (...) isn't calculated   (https://atcoder.jp/contests/arc067/submissions/65832141).
+//         8) this is a non-monotonic example  (https://vjudge.net/problem/CSAcademy-squared-ends).
+//         9)
+//
+//
+// problems: 1) https://cses.fi/problemset/task/2087 (very important)
+//           2) https://vjudge.net/problem/HackerRank-mining (very important)
+//           3) https://vjudge.net/problem/Gym-101242B (Dijkstra + D&C) (very very important)
+//           4) https://atcoder.jp/contests/arc067/tasks/arc067_d
+//           5)
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Subarray Squares (https://cses.fi/problemset/task/2086/)
+// Given an array of n elements, divide into k subarrays, where
+// The cost of each subarray is the square of the sum of the values in the subarray.
+
+ll n, K;
+vector < ll > a, pre;
+
+ll it = 1, dp[2][6009];
+
+void slv(ll l, ll r, ll optl, ll optr)
+{
+    if(l > r) return;
+
+    ll mid = (l + r)/2;
+
+    ll &ret = dp[it][mid]; ret = oo;
+    ll opt = -1;
+
+    for(ll j = max(optl, mid); j <= optr; j++) // [mid, j]
+    {
+        ll c = (pre[j] - pre[mid - 1])*(pre[j] - pre[mid - 1]) + dp[it ^ 1][j + 1];
+        if(c < ret)
+        {
+            ret = c;
+            opt = j;
+        }
+    }
+
+    slv(l, mid - 1, optl, opt); // left subarray
+    slv(mid + 1, r, opt, optr); // right subarray
+}
+
+void solve()
+{
+
+    cin >> n >> K;
+    a.assign(n + 1, 0); pre.assign(n + 1, 0);
+    for(ll i = 1; i <= n; i++) cin >> a[i], pre[i] = pre[i - 1] + a[i];
+
+
+    for(ll k = 0; k <= 1; k++) for(ll l = 0; l <= n + 5; l++) dp[k][l] = oo;
+    dp[0][n + 1] = 0;
+
+    // // not optimized
+    // for(ll k = 1; k <= K; k++)
+    // {
+    //     for(ll l = 1; l <= n; l++)
+    //     {
+    //         ll &ret = dp[k & 1ll][l]; ret = oo;
+    //         for(ll j = l; j <= n; j++)
+    //         {
+    //             ll cost = (pre[j] - pre[l - 1])*(pre[j] - pre[l - 1]) + dp[(k - 1) & 1ll][j + 1];
+    //             ret = min(ret, cost);
+    //         }
+    //     }
+    // }
+    // cout << dp[K & 1ll][1] << endl;
+
+    // D&C optimization
+    it = 1; // important
+    for(ll k = 1; k <= K; k++, it ^= 1) slv(1, n, 1, n);
+    cout << dp[it ^ 1][1] << endl;
+
+
+    return;
+}
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+//---------------------------- D&C
+
+ll L = 1, R = 0, sm = 0, freq[35005]; // 1-indexed
+void add(ll i)
+{
+    freq[a[i]]++;
+    if(freq[a[i]] == 1) sm++;
+}
+
+void rem(ll i)
+{
+    freq[a[i]]--;
+    if(freq[a[i]] == 0) sm--;
+}
+
+void move(ll l, ll r)
+{
+    while(R < r) add(++R);
+    while(L > l) add(--L);
+    while(R > r) rem(R--);
+    while(L < l) rem(L++);
+}
+
+//---------------------------- D&C
+
+// i want the sum of xor/and/or of (each pair) in the range [l, r]
+ll query(ll x, ll y)
+{
+    ll x1 = x, y1 = x, x2 = y, y2 = y;
+    ll sm = pre[x2][y2] - pre[x1 - 1][y2] - pre[x2][y1 - 1] + pre[x1 - 1][y1 - 1];
+    return (sm >> 1ll);
+}
+
+pre.assign(n + 1, vector < ll > (n + 1, 0));
+for(ll i = 1; i <= n; i++)
+{
+    for(ll j = 1; j <= n; j++)
+    {
+        pre[i][j] = (a[i] ^ a[j]);
+        pre[i][j] += pre[i][j - 1];
+        pre[i][j] += pre[i - 1][j];
+        pre[i][j] -= pre[i - 1][j - 1];
+    }
+}
+
+//---------------------------------- D&C
+
+// cost[l][r] is value of or/xor/and of all elements in the range [l, r]
+cost.assign(n + 2, vector < ll > (n + 2, 0));
+for(ll i = 1; i <= n; i++)
+{
+    for(ll j = i; j <= n; j++)
+    {
+        cost[i][j] = cost[i][j - 1] | a[j];
+    }
+}
+
+
+//---------------------------------- D&C
+
+// cost[l][r] is the number of pairs in range [l, r] where (a[i] > a[j]), l <= i < j <= r.
+cost.assign(n + 2, vector < ll > (n + 2, 0));
+for(ll len = 1; len <= n; len++)
+{
+    for(ll i = 1; i <= n; i++)
+    {
+        ll j = i + len - 1; if(j > n) break;
+        cost[i][j] = (a[i] > a[j]) + cost[i][j - 1] + cost[i + 1][j] - cost[i + 1][j - 1];
+    }
+}
+
+//---------------------------------- D&C
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

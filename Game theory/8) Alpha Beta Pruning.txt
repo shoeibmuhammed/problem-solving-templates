@@ -1,0 +1,180 @@
+
+/*                              Alpha-Beta pruning                              */
+//
+// MinMax games: two players are called maximizer and minimizer.
+// The maximizer tries to get the highest score possible while the minimizer tries to do the opposite and get the lowest score possible.
+//
+// Alpha-Beta pruning:
+// Is not actually a new algorithm, but rather an optimization technique for the minimax algorithm.
+// It reduces the computation time by a huge factor.
+// This allows us to search much faster and even go into deeper levels in the game tree.
+// It cuts off branches in the game tree which need not be searched because there already exists a better move available.
+// It is called Alpha-Beta pruning because it passes 2 extra parameters in the minimax function, namely alpha and beta.
+// Alpha: is the best value that the maximizer currently can guarantee at that level or above.
+// Beta: is the best value that the minimizer currently can guarantee at that level or below.
+//
+
+
+
+//..............................................................................................................................
+
+
+// no memoization bcos no state repeated (it's a tree)
+
+ll n;
+vector < ll > a;
+vector < vector < ll > > graph;
+
+
+ll slv(ll root, ll turn, ll alpha, ll beta)
+{
+    if((ll)graph[root].empty()) return a[root];
+
+    ll ret;
+
+    if(turn == 0) // maximizer
+    {
+        ret = -oo;
+        for(const auto &i : graph[root])
+        {
+            ret = max(ret, slv(i, 1, alpha, beta));
+            alpha = max(alpha, ret);
+            if(alpha >= beta) break; // Beta cut-off
+        }
+    }
+    else // minimizer
+    {
+        ret = oo;
+        for(const auto &i : graph[root])
+        {
+            ret = min(ret, slv(i, 0, alpha, beta));
+            beta = min(beta, ret);
+            if(beta <= alpha) break; // Alpha cut-off
+        }
+    }
+
+    return ret;
+}
+
+
+void solve()
+{
+
+    cin >> n;
+    a.assign(n + 1, 0);
+    for(ll i = 1; i <= n; i++) cin >> a[i];
+    graph.assign(n + 1, vector < ll > ());
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+    }
+
+
+    cout << slv(1, 0, -oo, oo) << endl;
+
+// 13
+// -1 -1 -1 -1 -6 6 -7 -6 -6 0 11 -11 0
+// 1 2
+// 1 3
+// 1 4
+// 2 5
+// 2 6
+// 2 7
+// 3 8
+// 3 9
+// 3 10
+// 4 11
+// 4 12
+// 4 13
+
+
+
+
+
+    return;
+}
+
+
+
+//..............................................................................................................................
+
+
+
+// (Some Game) https://www.scribd.com/document/637040478/RUET-IUPC-2022-Problemset
+
+ll n, k;
+vector < ll > a;
+
+ll ways(ll n, ll k)
+{
+    return mod_mul(mod_div(fact[n], fact[k]), ncr(n - 1, k - 1));
+}
+
+ll slv(ll l, ll turn, ll balls, ll boxes, ll alpha, ll beta)
+{
+    if(l == n) return abs(k - ways(balls, boxes)); // val = abs(k - ways)
+
+    if(turn == 0)
+    {
+        ll ret = -oo;
+
+        // leave
+        ret = max(ret, slv(l + 1, 1, balls, boxes, alpha, beta));
+        alpha = max(alpha, ret);
+
+        if(alpha >= beta) return ret;
+
+        // take
+        ret = max(ret, slv(l + 1, 1, balls + a[l], boxes + 1, alpha, beta));
+        alpha = max(alpha, ret);
+
+        return ret;
+    }
+    else
+    {
+        ll ret = oo;
+
+        // leave
+        ret = min(ret, slv(l + 1, 0, balls, boxes, alpha, beta));
+        beta = min(beta, ret);
+
+        if(alpha >= beta) return ret;
+
+        // take
+        ret = min(ret, slv(l + 1, 0, balls + a[l], boxes + 1, alpha, beta));
+        beta = min(beta, ret);
+
+        return ret;
+    }
+
+}
+
+
+
+void solve()
+{
+
+    cin >> n >> k;
+    a.assign(n, 0);
+    for(auto &i : a) cin >> i;
+
+    cout << slv(0, 0, 0, 0, -oo, oo) << endl;
+
+
+// 3
+// 1 100
+// 10
+// 2 19490
+// 1 2
+// 5 123456789
+// 5555 1000000 1 342 1653
+
+
+
+    return;
+}
+
+
+
+//..............................................................................................................................

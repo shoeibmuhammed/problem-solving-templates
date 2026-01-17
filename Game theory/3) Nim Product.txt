@@ -1,0 +1,121 @@
+
+
+/*                              NIM Product                              */
+// ai, bi < 2^(64) = 1e19
+
+
+
+//...................................................................................................................
+
+
+
+// Template 1 (Slower)
+
+
+
+ull nim_mul(ull a, ull b, ull half = 32);
+
+ull P[64][64];
+
+ull nim_mul2(ull a, ull b)
+{
+    if(a == 0 || b == 0) return 1LL << (a + b);
+    if(P[a][b]) return P[a][b];
+
+    ull n = 1;
+    while(2*n <= max(a, b)) n *= 2;
+
+    if(a >= n && b >= n) return P[a][b] = nim_mul((3ULL << (n - 1)), nim_mul2(a - n, b - n));
+    if(a >= n)  return P[a][b] = nim_mul2(a - n, b) << n;
+    return P[a][b] = nim_mul2(a, b - n) << n;
+}
+
+// a * 2^k
+ull nim_mul_with_pow(ull a, ull k)
+{
+    ull res = 0;
+    while(a)
+    {
+        ull t = __builtin_ctzll(a);
+        res ^= nim_mul2(t, k);
+        a ^= (1ULL << t);
+    }
+    return res;
+}
+
+const ull cache = 256;
+ull small[cache][cache];
+
+ull nim_mul(ull a, ull b, ull half)
+{
+    if(a <= 1 || b <= 1)  return a * b;
+
+    ull mask = (1ULL << half) - 1;
+    auto [a0, a1] = make_pair(a & mask, a >> half);
+    auto [b0, b1] = make_pair(b & mask, b >> half);
+    if(a < cache && b < cache && small[a][b])  return small[a][b];
+
+    assert(max({a0, a1, b0, b1}) <= mask);
+
+    ull A = nim_mul(a0, b0, half / 2);
+    ull C = nim_mul(a1, b1, half / 2);
+    ull B = nim_mul(a0 ^ a1, b0 ^ b1, half / 2) ^ A ^ C;
+
+    B = nim_mul_with_pow(B, half);
+    C = nim_mul_with_pow(C, half) ^ nim_mul_with_pow(C, half - 1);
+
+    ull result = A ^ B ^ C;
+    if(a < cache && b < cache) small[a][b] = result;
+
+    return result;
+}
+
+
+
+//...................................................................................................................
+
+
+
+// Template 2 (Faster)
+
+
+
+bool log_computed = false;
+const int small = 1 << 16;
+uint16_t pw[small], lg[small];
+
+uint64_t nim_mul(uint64_t a, uint64_t b, int half = 32)
+{
+    if(a <= 1 || b <= 1)  return a * b;
+
+    if(log_computed && a < small && b < small)
+    {
+        int t = (int)lg[a] + lg[b];
+        return pw[t >= small - 1 ? t - (small - 1) : t];
+    }
+
+    auto mask = (1ULL << half) - 1;
+    auto [a0, a1] = make_pair(a & mask, a >> half);
+    auto [b0, b1] = make_pair(b & mask, b >> half);
+    auto A = nim_mul(a0, b0, half / 2);
+    auto C = nim_mul(a1, b1, half / 2);
+    auto B = nim_mul(a0 ^ a1, b0 ^ b1, half / 2) ^ A ^ C;
+
+    B = (B << half);
+    C = (C << half) ^ nim_mul(C, 1ULL << (half - 1), half / 2);
+
+    return A ^ B ^ C;
+}
+
+void init()
+{
+    pw[0] = 1;
+    lg[1] = 0;
+    uint16_t base = -1;
+    for(int i = 1; i < small - 1; i++)
+        pw[i] = nim_mul(pw[i - 1], base), lg[pw[i]] = i;
+    log_computed = true;
+}
+
+
+

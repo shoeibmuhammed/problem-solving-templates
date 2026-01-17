@@ -1,0 +1,301 @@
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      Li Chao Tree                                      */
+// insert & eval in O(log(range)).
+// lines can be added in any slope order, x-values can also be queried in any order.
+
+
+
+
+
+//------------------------
+
+
+// Templates:
+// max Dynamic Li Chao Tree (YouKnowWho): https://ideone.com/uVHvlg
+// min Dynamic Li Chao Tree (YouKnowWho): https://ideone.com/OEI0ZF
+
+
+//------------------------
+
+
+// Max Dynamic Li Chao Tree
+// insert_line in O(log(__end - __start)), eval in O(log(__end - __start)).
+
+
+ll __start, __end;
+typedef pair < ll, ll > line;
+
+ll subs(const line &l, ll x) // substitue
+{
+    return l.first*x + l.second;
+}
+
+ld inter(const line &l1, const line &l2) // get intersection point
+{
+    return (1.0*l2.second - 1.0*l1.second) / (1.0*l1.first - 1.0*l2.first); // m1*x + c1 = m2*x + c2, x = (c2 - c1) / (m1 - m2);
+}
+
+bool imp(const line &l1, const line &l2, const line &l3) // check if l2 is important line
+{
+    return inter(l1, l2) < inter(l2, l3);
+}
+
+
+extern struct node *const EMPTY;
+
+struct node
+{
+    line l;
+    node *lf, *ri;
+
+    node() : l({0, 0}), lf(this), ri(this) {}
+    node(line l) : l(l), lf(EMPTY), ri(EMPTY) {}
+};
+
+
+node *const EMPTY = new node;
+
+void insert_line(line l, node *&ni, int lx = __start, int rx = __end)
+{
+    if(ni == EMPTY) // if EMPTY
+    {
+        ni = new node(l);
+        return;
+    }
+
+    if(l.first == ni->l.first) // if parallel
+    {
+        ni->l = max(ni->l, l); // max c
+        return;
+    }
+
+    auto x = inter(l, ni->l);
+
+    if(x < lx || x > rx) // intersection is out of range
+    {
+        if(subs(l, lx) > subs(ni->l, lx)) ni->l = l; //
+        return;
+    }
+
+    ll mid = lx + (rx - lx)/2; // floor
+
+    if(x <= mid)
+    {
+        if(subs(l, rx) > subs(ni->l, rx)) swap(l, ni->l); //
+        insert_line(l, ni->lf, lx, mid);
+    }
+    else
+    {
+        if(subs(l, lx) > subs(ni->l, lx)) swap(l, ni->l); //
+        insert_line(l, ni->ri, mid + 1, rx);
+    }
+}
+
+
+ll eval(ll x, node *ni, ll lx = __start, ll rx = __end)
+{
+    auto ret = subs(ni->l, x);
+
+    if(x < lx || x > rx) return -oo; //
+
+    if(lx == rx) return ret;
+
+    ll mid = lx + (rx - lx)/2; // floor
+
+    if(x <= mid) return max(ret, eval(x, ni->lf, lx, mid)); //
+    else return max(ret, eval(x, ni->ri, mid + 1, rx)); //
+}
+
+
+// node *root = EMPTY;
+// __start = 0; __end = (ll)1e9 + 1;
+// ret = eval(x, root);
+// insert_line({m, c}, root);
+
+
+//-------------------------------------------
+
+
+// Min Dynamic LiChao Tree
+// insert_line in O(log(__end - __start)), eval in O(log(__end - __start)).
+
+
+ll __start, __end;
+typedef pair < ll, ll > line;
+
+ll subs(const line &l, ll x) // substitue
+{
+    return l.first*x + l.second;
+}
+
+ld inter(const line &l1, const line &l2) // get intersection point
+{
+    return (1.0*l2.second - 1.0*l1.second) / (1.0*l1.first - 1.0*l2.first); // m1*x + c1 = m2*x + c2, x = (c2 - c1) / (m1 - m2);
+}
+
+bool imp(const line &l1, const line &l2, const line &l3) // check if l2 is important line
+{
+    return inter(l1, l2) < inter(l2, l3);
+}
+
+
+extern struct node *const EMPTY;
+
+struct node
+{
+    line l;
+    node *lf, *ri;
+
+    node() : l({0, oo}), lf(this), ri(this) { }
+    node(line l) : l(l), lf(EMPTY), ri(EMPTY) { }
+};
+
+node *const EMPTY = new node;
+
+void insert_line(line l, node *&ni, int lx = __start, int rx = __end)
+{
+    if(ni == EMPTY) // if empty
+    {
+        ni = new node(l);
+        return;
+    }
+
+    if(l.first == ni->l.first) // if parallel
+    {
+        ni->l = min(ni->l, l); // min c
+        return;
+    }
+
+    auto x = inter(l, ni->l);
+
+    if(x < lx || x > rx)
+    {
+        if (subs(l, lx) < subs(ni->l, lx)) ni->l = l;
+        return;
+    }
+
+    ll mid = lx + (rx - lx) / 2;
+
+    if(x <= mid)
+    {
+        if(subs(l, rx) < subs(ni->l, rx)) swap(l, ni->l);
+        insert_line(l, ni->lf, lx, mid);
+    }
+    else
+    {
+        if(subs(l, lx) < subs(ni->l, lx)) swap(l, ni->l);
+        insert_line(l, ni->ri, mid + 1, rx);
+    }
+}
+
+ll eval(ll x, node *ni, ll lx = __start, ll rx = __end)
+{
+    auto ret = subs(ni->l, x);
+
+    if(x < lx || x > rx) return oo;
+
+    if(lx == rx) return ret;
+
+    ll mid = lx + (rx - lx) / 2;
+
+    if(x <= mid) return min(ret, eval(x, ni->lf, lx, mid));
+    else return min(ret, eval(x, ni->ri, mid + 1, rx));
+}
+
+
+// node *root = EMPTY;
+// __start = 0; __end = (ll)1e9 + 1;
+// ret = eval(x, root);
+// insert_line({m, c}, root);
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Polynomial Li Chao of 3rd degree
+// when x >= sqrt(1e5) = 316, there will be at most one intersection.
+
+
+const ll __start = 351, __end = (ll)1e5; // range of x
+const ll __T = 10; // max number of test cases
+
+struct PolynomialLiChao
+{
+    struct Poly
+    {
+        ll a, b, c, d = oo;
+        ll operator()(ll x) { return a*x*x*x + b*x*x + c*x + d; }
+    };
+
+    Poly a[__T][4 * __end];
+    ll t = -1; // which version we use now
+
+    void insert_line(Poly poly, ll l = __start, ll r = __end, ll o = 0)
+    {
+        if(l + 1 == r)
+        {
+            if(poly(l) < a[t][o](l)) a[t][o] = poly;
+            return;
+        }
+
+        ll mid = (l + r) >> 1, lson = o * 2 + 1, rson = o * 2 + 2;
+
+        bool b1 = poly(mid) < a[t][o](mid), b2 = poly(l) < a[t][o](l);
+
+        if(b1) swap(poly, a[t][o]);
+
+        if(b1 != b2) insert_line(poly, l, mid, lson);
+        else insert_line(poly, mid, r, rson);
+    }
+
+    ll eval(ll x, ll l = __start, ll r = __end, ll o=0)
+    {
+        if(l + 1 == r) return a[t][o](x);
+
+        ll mid = (l + r) >> 1, lson = o * 2 + 1, rson = o * 2 + 2;
+
+        if(x < mid) return min(a[t][o](x), eval(x, l, mid, lson));
+        else return min(a[t][o](x), eval(x, mid, r, rson));
+    }
+};
+
+
+PolynomialLiChao st;
+
+
+void solve()
+{
+    ll n; cin >> n;
+
+    st.t++;
+
+    vector < ll > ans(__start, oo);
+
+    while(n--)
+    {
+        ll a, b, c, d; cin >> d >> c >> b >> a;
+
+        st.insert_line({a, b, c, d});
+
+        PolynomialLiChao::Poly p = {a, b, c, d};
+        for(ll i = 0; i < __start; i++) ans[i] = min(ans[i], p(i));
+    }
+
+
+    ll q; cin >> q;
+    while(q--)
+    {
+        ll x; cin >> x;
+        if(x < __start) cout << ans[x] << endl;
+        else cout << st.eval(x) << endl;
+    }
+
+
+    return;
+}
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

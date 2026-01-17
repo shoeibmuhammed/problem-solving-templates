@@ -1,0 +1,96 @@
+//.................................................................................................................................................................................
+
+
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// check of twol points are equal or not
+bool isEqual(cld a, cld b) { return sgn(a.X - b.X) == 0 && sgn(a.Y - b.Y) == 0; }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cT v, cT w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cT v, cT w) { return v.X*w.Y - v.Y*w.X; }
+
+
+
+/*                              Angles                              */
+//
+//
+
+
+
+// get the smallest absolute angle (radian) between two vectors v and w, using the dot product
+ld angle(cld v, cld w) { return acos(clamp(1.0L * dot(v, w) / abs(v) / abs(w), -1.0L, 1.0L)); }
+
+// computes the orientation of the turn from point a → b → c
+// the sign of the cross product tells you the direction of the turn (orientation) between two vectors.
+// orient(a, b, c) = orient(b, c, a) = orient(c, a, b)
+// orient(a, b, c) > 0  left turn (c is left to ab)
+// orient(a, b, c) = 0  collinear (a, b, c lie on a line)
+// orient(a, b, c) < 0  right turn (c is right to ab)
+T orient(cT a, cT b, cT c) { return cross(b - a, c - a); } // ab cross ac
+
+// returns the oriented (anti-clockwise) angle ∠bac in radian
+ld orientedAngle(cld a, cld b, cld c)
+{
+    if(sgn(orient(a, b, c)) > -1) return angle(b - a, c - a); // 0, and (pi or -pi --> u choose)
+    else return 2.0L*pi - 1.0L*angle(b - a, c - a);
+}
+
+// computes the signed angle (smallest) ∠bac from vector ab to ac
+ld angleTravelled(cld a, cld b, cld c)
+{
+    if(sgn(orient(a, b, c)) > -1) return angle(b - a, c - a); // 0, and (pi or -pi --> u choose)
+    else return -angle(b - a, c - a);
+}
+
+// check point p in between ∠bac (from point b to c in anti-clockwise)
+bool inAngle(cld a, cld b, cld c, cld p) // fast time
+{
+    if(isEqual(a, b) && isEqual(b, c)) // a == b == c
+    {
+        if(isEqual(a, p)) return 1; // a == b == c == p
+        return 0; // a == b == c != p
+    }
+
+    ll abp = sgn(orient(a, b, p)), acp = sgn(orient(a, c, p)), abc = sgn(orient(a, b, c));
+
+    if(!abc) // a, b, c are collinear
+    {
+        auto cmpProj = [&](cld p0, cld p1, cld v) { return dot(v,p1) - dot(v,p0) > -eps; };
+        cld v = b - a;
+        if(cmpProj(c, b, v)) swap(b, c);
+        if(cmpProj(a, b, v)) return !sgn(orient(a, b, p)) && cmpProj(a, p, v);
+    }
+
+
+    if(abc < 0) swap(abp, acp);
+
+    return ((abp > -1 && acp < 1) ^ (abc < 0));
+}
+
+bool inAngle2(cld a, cld b, cld c, cld p) // big time
+{
+    if(isEqual(a, b) && isEqual(b, c)) // a == b == c
+    {
+        if(isEqual(a, p)) return 1; // a == b == c == p
+        return 0; // a == b == c != p
+    }
+
+    ll abp = sgn(orient(a, b, p)), acp = sgn(orient(a, c, p)), abc = sgn(orient(a, b, c));
+
+    if(!abc && !sgn(angle(b - a, c - a))) return (!abp && !sgn(angle(b - a, p - a)));
+
+    if(abc < 0) swap(abp, acp);
+
+    return ((abp > -1 && acp < 1) ^ (abc < 0));
+}
+
+
+
+//.................................................................................................................................................................................
+
+

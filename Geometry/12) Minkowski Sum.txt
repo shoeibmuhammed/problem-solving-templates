@@ -1,0 +1,230 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cld v, cld w) { return v.X*w.Y - v.Y*w.X; }
+
+
+
+/*                              Minkowski Sum                              */
+// The Minkowski Sum of two sets A and B in a vector space is the set formed by adding every vector in A to every vector in B.
+// If A andB are shapes (e.g., polygons) in the plane, then the Minkowski sum is a new shape formed by "sweeping" one shape around the other.
+// If A and B are convex polygons, their Minkowski sum is also a convex polygon.
+//
+
+
+
+void reorder_polygon(vector < cld > &P)
+{
+    size_t pos = 0;
+    for(size_t i = 1; i < P.size(); i++)
+    {
+        if(P[i].Y < P[pos].Y || (P[i].Y == P[pos].Y && P[i].X < P[pos].X)) pos = i;
+    }
+    rotate(P.begin(), P.begin() + pos, P.end());
+}
+
+// P & Q must be in CCW order
+vector < cld > minkowskiSum(vector < cld > P, vector<cld> Q)
+{
+    // the first vertex must be the lowest
+    reorder_polygon(P); reorder_polygon(Q);
+
+    // we must ensure cyclic indexing
+    P.push_back(P[0]); P.push_back(P[1]);
+    Q.push_back(Q[0]); Q.push_back(Q[1]);
+
+    // main part
+    vector < cld > res;
+    size_t i = 0, j = 0;
+    while(i < (ll)P.size() - 2 || j < Q.size() - 2)
+    {
+        res.push_back(P[i] + Q[j]);
+        T c = cross((P[i + 1] - P[i]), (Q[j + 1] - Q[j]));
+        if(sgn(c) >= 0 && i < (ll)P.size() - 2) i++;
+        if(sgn(c) <= 0 && j < (ll)Q.size() - 2) j++;
+    }
+
+    return res;
+}
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// ....................................................................................
+
+// computes the minimum distance between two convex polygons
+
+// squared distance
+T dist2(cld pt1, cld pt2 = {0, 0})
+{
+    T dx = fabsl(pt1.X - pt2.X);
+    T dy = fabsl(pt1.Y - pt2.Y);
+    return dx*dx + dy*dy;
+}
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cld v, cld w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cld v, cld w) { return v.X*w.Y - v.Y*w.X; }
+
+// get the perpendicular vector (rotated 90° anti-clockwise)
+cld perp(cld p) { return {-p.Y, p.X}; }
+
+
+// computes the orientation of the turn from point a → b → c
+// the sign of the cross product tells you the direction of the turn (orientation) between two vectors.
+// orient(a, b, c) = orient(b, c, a) = orient(c, a, b)
+// orient(a, b, c) > 0  left turn (c is left to ab)
+// orient(a, b, c) = 0  collinear (a, b, c lie on a line)
+// orient(a, b, c) < 0  right turn (c is right to ab)
+T orient(cld a, cld b, cld c) { return cross(b - a, c - a); } // ab cross ac
+
+
+struct Line
+{
+    cld v; // {b, -a}
+    T c;
+
+    // vector v & constant c
+    Line(cld v, T c) : v(v), c(c) { }
+
+    // ax + by = c
+    Line(T a, T b, T _c)
+    {
+        v = {1.0*b, -1.0*a};
+        c = _c;
+    }
+
+    // two points on the line (a → b)
+    Line(cld a, cld b)
+    {
+        v = b - a;
+        c = cross(v, a);
+    }
+
+    // return +ve if point p is left to the Line ab, -ve if right to the line, and 0 if on the line
+    T side(cld p) { return cross(v, p) - c; } // ax + by - c
+
+    // length of the perpendicular line of the point p on the line is: |ax + by - c| / sqrtl(a*a + b*b)
+    ld dist(cld p)   { return fabsl(side(p)) / abs(v); }
+    ld sqDist(cld p) { return side(p)*side(p) / (ld)dist2(v);} // dist * dist
+
+    // sorts points in the order of their projection along v.
+    // returns true, if Point p projection on the line lies before point q projection on the line.
+    bool cmpProjection(cld p, cld q) { return dot(v, q) - dot(v, p) > eps; } // > -eps if u want equality
+};
+
+// computes the shortest distance from point p to the segment ab
+ld pointSegmentDist(cld a, cld b, cld p)
+{
+    if(a != b)
+    {
+        Line l(a, b);
+        if(l.cmpProjection(a, p) && l.cmpProjection(p, b)) return l.dist(p);
+    }
+    return min(abs(p - a), abs(p - b)); // otherwise distance to a or b
+}
+
+ld pointSegmentDist(cld a, cld b, cld c)
+{
+    if(abs(a.X - b.X) < eps) return abs(a.X - c.X);
+    if(abs(a.Y - b.Y) < eps) return abs(a.Y - c.Y);
+
+    ld d = (a.Y - b.Y) / (a.X - b.X);
+    ld e = a.Y - a.X*d;
+    ld d1 = -1.0L/d;
+    ld e1 = c.Y - c.X*d1;
+
+    ld x = (e1 - e) / (d - d1);
+    ld y = x*d + e;
+    return sqrtl((c.X - x)*(c.X - x) + (c.Y - y)*(c.Y - y));
+}
+
+// p is in CCW order
+// -1: IN, 0: ON, 1: OUT
+ll inPolygon2(vector < cld > &p, cld a) // O(log2(n)
+{
+    ll n = (ll)p.size();
+
+    if(sgn(orient(p[0], p[1], a)) < 0 || sgn(orient(p[0], p[n - 1], a)) > 0) return 1;
+
+    ll l = 1, r = n - 2, mid;
+    while(l < r) // ... t t f f...
+    {
+        mid = l + (r - l + 1)/2;
+        if(sgn(orient(p[0], p[mid], a)) > 0) l = mid;
+        else r = mid - 1;
+    }
+
+    ll k = sgn(orient(p[l], p[l + 1], a));
+    if(k < 1) return -k;
+    if(l == 1 && sgn(orient(p[0], p[1], a)) == 0) return 0;
+    if(l + 1 == n - 1 && sgn(orient(p[0], p[n - 1], a)) == 0) return 0;
+    return -1;
+}
+
+void reorder_polygon(vector < cld > &P)
+{
+    size_t pos = 0;
+    for(size_t i = 1; i < P.size(); i++)
+    {
+        if(P[i].Y < P[pos].Y || (P[i].Y == P[pos].Y && P[i].X < P[pos].X)) pos = i;
+    }
+    rotate(P.begin(), P.begin() + pos, P.end());
+}
+
+// P & Q must be in CCW order
+vector < cld > minkowskiSum(vector < cld > P, vector < cld > Q)
+{
+    // the first vertex must be the lowest
+    reorder_polygon(P); reorder_polygon(Q);
+
+    // we must ensure cyclic indexing
+    P.push_back(P[0]); P.push_back(P[1]);
+    Q.push_back(Q[0]); Q.push_back(Q[1]);
+
+    // main part
+    vector < cld > res;
+    size_t i = 0, j = 0;
+    while(i < (ll)P.size() - 2 || j < Q.size() - 2)
+    {
+        res.push_back(P[i] + Q[j]);
+        T c = cross((P[i + 1] - P[i]), (Q[j + 1] - Q[j]));
+        if(sgn(c) >= 0 && i < (ll)P.size() - 2) i++;
+        if(sgn(c) <= 0 && j < (ll)Q.size() - 2) j++;
+    }
+
+    return res;
+}
+
+ld minDistance(vector < cld > p1, vector < cld > p2)
+{
+    for(auto &i : p2) i *= -1.0L;
+
+    vector < cld > minkowski = minkowskiSum(p1, p2);
+
+    if(inPolygon2(minkowski, {0, 0}) == 0) return 0;
+
+    ld ret = oo;
+    ll sz = (ll)minkowski.size();
+    for(ll i = 0; i < sz; i++)
+        ret = min(ret, pointSegmentDist(minkowski[i], minkowski[(i + 1) % sz], {0, 0}));
+
+    return ret;
+}
+
+// ......................................................................................
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

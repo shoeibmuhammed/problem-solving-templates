@@ -1,0 +1,1091 @@
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                  (1) Mo on Subtree (each node have a weight)                                  */
+// Static Offline range queries on the subtree of any node in O(n * SQ)
+// Time Complexity: O((SQ*q + (n/SQ)*n) * F)
+//                  O((n + q) * SQ * F), where O(F) is the complexity of add/remove
+//
+// Idea: flatten the tree into an array using Euler Tour, then Mo algorithm becomes usable.
+// if TLE use different SQ: (ll)sqrtl(N/log(N)) + 1, n/sqrtl(q) + 1, ...
+//
+
+
+
+// problem statement:
+// given a rooted tree at root 1, each node hase a color,
+// given queries: get the number of distinct colors in the subtree of all nodes.
+// https://cses.fi/problemset/task/1139
+
+
+
+// variables
+const ll N = (ll)2e6 + 6, M = (ll)2e6 + 6;
+const ll SQ = (ll)sqrtl(N) + 1ll;
+ll n, q, w[N];
+vector < ll > graph[N];
+ll a[N], in[N], out[N], timer = 0;
+ll freq[N], res = 0;
+ll ans[M];
+
+
+
+void dfs(ll root = 1, ll p = -1)
+{
+    in[root] = timer;
+    a[timer] = root;
+    timer++;
+
+    for(const auto &i : graph[root])
+    {
+        if(i == p) continue;
+        dfs(i, root);
+    }
+
+    out[root] = timer - 1;
+
+    return;
+}
+
+struct Query
+{
+    ll l, r, queryIdx, blockIdx;
+
+    Query() { }
+
+    Query(ll _l, ll _r, ll _queryIdx)
+    {
+        l = _l;
+        r = _r;
+        queryIdx = _queryIdx;
+        blockIdx = (ll)_l/SQ;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        if(blockIdx != other.blockIdx) return blockIdx < other.blockIdx;
+
+        // return r < other.r; // Normal sorting
+        return (blockIdx % 2 == 0 ? r < other.r : r > other.r); // ZigZag sorting (little optimization in time!)
+    }
+};
+vector < Query > queries;
+
+inline void add(ll idx)
+{
+    ll u = a[idx];
+
+    if(!freq[w[u]]) res++;
+    freq[w[u]]++;
+}
+
+inline void remove(ll idx)
+{
+    ll u = a[idx];
+
+    freq[w[u]]--;
+    if(!freq[w[u]]) res--;
+}
+
+void MOonSubtree()
+{
+    sort(all(queries));
+
+    ll l = 0, r = -1;
+    for(ll i = 0; i < q; i++)
+    {
+        while(l > queries[i].l) add(--l);
+        while(r < queries[i].r) add(++r);
+        while(l < queries[i].l) remove(l++);
+        while(r > queries[i].r) remove(r--);
+
+        ans[queries[i].queryIdx] = res;
+    }
+
+    // reset (save time, instead clearing data)
+    ll x = 0, y = -1;
+    while(l > x) add(--l);
+    while(r < y) add(++r);
+    while(l < x) remove(l++);
+    while(r > y) remove(r--);
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+    timer = 0;
+    for(ll i = 0; i <= n; i++)
+        graph[i].clear();
+}
+
+void solve()
+{
+
+    cin >> n;
+    clear();
+    for(ll i = 1; i <= n; i++) cin >> w[i], w[i] = get(w[i]);
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+
+    dfs();
+
+    q = n;
+    queries.assign(q, Query());
+    for(ll i = 0; i < q; i++)
+    {
+        ll u = i + 1;
+        queries[i] = Query(in[u], out[u], i);
+    }
+
+    MOonSubtree();
+
+    for(ll i = 0; i < q; i++)
+        cout << ans[i] << ' ';
+    cout << endl;
+
+
+
+    return;
+}
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (2) Mo on Subtree with update (each node have weight)                         */
+// Dynamic Offline range queries in O(q * n^(2/3)) = O(n^(5/3))
+// u can update node only not a range
+// if TLE use different SQ: n^(2/3), (2 * n^(2))^(1/3), ...
+// the add/remove operations must take O(1), or it will TLE!
+// if u need more time optimize, uncomment the comments lines, and comment the above line for each one,
+// it reduces the half numbers of accessing memory of the arrays (i write the bad one because it's more redable).
+//
+
+
+
+// problem statement:
+// given tree, each node have a weight.
+// given queries: update the weight of a node, get the sum of subtree of the node.
+// https://cses.fi/problemset/task/1137
+
+
+
+// variables
+const ll N = (ll)2e5 + 5, M = (ll)2e5 + 5;
+const ll SQ = 2500;
+ll n, q, w[N];
+vector < ll > graph[N];
+ll in[N], out[N], a[N], timer = 0;
+ll freq[2*N], res = 0;
+ll ans[M];
+
+
+
+void dfs(ll root = 1, ll p = -1)
+{
+    in[root] = timer;
+    a[timer] = root;
+    // a[timer] = w[root];
+    timer++;
+
+    for(const auto &i : graph[root])
+    {
+        if(i == p) continue;
+        dfs(i, root);
+    }
+
+    out[root] = timer - 1;
+
+    return;
+}
+
+struct Update
+{
+    ll pos, prevVal, newVal;
+    Update() { }
+    Update(ll _pos, ll _prevVal, ll _newVal) : pos(_pos), prevVal(_prevVal), newVal(_newVal) { }
+};
+vector < Update > updates;
+
+struct Query
+{
+    ll l, r, t, queryIdx, blockL, blockR;
+
+    Query() { }
+
+    Query(ll _l, ll _r, ll _t, ll _queryIdx)
+    {
+        l = _l;
+        r = _r;
+        t = _t;
+        queryIdx = _queryIdx;
+        blockL = (ll)_l/SQ;
+        blockR = (ll)_r/SQ;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        if(blockL != other.blockL) return blockL < other.blockL;
+        if(blockR != other.blockR) return blockR < other.blockR;
+        return t < other.t;
+    }
+};
+vector < Query > queries;
+
+inline void add(ll idx)
+{
+    ll u = a[idx];
+
+    res += w[u];
+    // res += u;
+}
+
+inline void remove(ll idx)
+{
+    ll u = a[idx];
+
+    res -= w[u];
+    // res -= u;
+}
+
+inline void update(ll pos, ll val, ll l, ll r)
+{
+    ll u = a[pos];
+    if(l <= pos && pos <= r)
+    {
+        remove(pos);
+        w[u] = val;
+        // u = val;
+        add(pos);
+    }
+    else
+    {
+        w[u] = val;
+        // u = val;
+    }
+}
+
+void MOonSubtreeWithUpdate(ll x)
+{
+    sort(all(queries));
+
+    ll l = 1, r = 0, t = x;
+    for(const auto &i : queries)
+    {
+        while(t < i.t) update(updates[t].pos, updates[t].newVal, l, r), t++;
+        while(t > i.t) t--, update(updates[t].pos, updates[t].prevVal, l, r);
+
+        while(l < i.l) remove(l++);
+        while(l > i.l) add(--l);
+        while(r < i.r) add(++r);
+        while(r > i.r) remove(r--);
+
+        ans[i.queryIdx] = res;
+    }
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+    timer = 0;
+    for(ll i = 0; i <= n; i++)
+        graph[i].clear();
+}
+
+void solve()
+{
+
+    cin >> n >> q;
+    // clear();
+    for(ll i = 1; i <= n; i++) cin >> w[i];
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+
+    dfs();
+
+    queries.clear();
+    updates.clear();
+    for(ll i = 0; i < q; i++)
+    {
+        ll op; cin >> op;
+        if(op == 1)
+        {
+            ll u, v; cin >> u >> v;
+            updates.emplace_back(in[u], w[u], v); w[u] = v;
+            // updates.emplace_back(in[u], a[in[u]], v); a[in[u]] = v;
+        }
+        else
+        {
+            ll u; cin >> u;
+            queries.emplace_back(in[u], out[u], (ll)updates.size(), (ll)queries.size());
+        }
+    }
+
+    MOonSubtreeWithUpdate((ll)updates.size());
+
+    for(ll i = 0; i < (ll)queries.size(); i++)
+        cout << ans[i] << endl;
+
+
+
+    return;
+}
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (3) Mo on Path (each node have weight)                    */
+// Static Offline range queries on the path between any two nodes in O(n * SQ)
+// Time Complexity: O((SQ*q + (n/SQ)*n) * F)
+//                  O((n + q) * SQ * F), where O(F) is the complexity of add/remove
+//
+// u----v, where in[u] < in[v]
+// let lc = lca(u, v)
+// if(lc == u) query on [in[u], in[v]]
+// else query on [out[u], in[v]] + [in[lc], in[lc]]
+// and every root that occurs twice are deleted
+// see this blog for more informations: https://codeforces.com/blog/entry/43230
+//
+//
+// Tricks: 1) u can use deque trick, bcos nodes appear in the deque in the order they appear on the u-v path (mau be reversed!).
+//            (https://www.codechef.com/problems/VLB)
+//         2)
+//
+
+
+
+// problem statement:
+// given a rooted tree at root 1, each node hase a color,
+// given queries: get the number of distinct colors in the path from u to v.
+// https://www.spoj.com/problems/COT2/en/
+
+
+
+// variables
+const ll N = (ll)2e6 + 6, M = (ll)2e6 + 6, LOG = 22;
+const ll SQ = (ll)sqrtl(2*N) + 1ll;
+ll n, q, w[N];
+vector < ll > graph[N];
+ll depth[N], parent[N][LOG + 1];
+ll in[N], out[N], a[2*N], timer = 0;
+bool vis[N];
+ll freq[2*N], res = 0;
+ll ans[M];
+
+
+// build
+void init(ll root = 1, ll par = 0)
+{
+    in[root] = ++timer;
+    a[timer] = root;
+
+    parent[root][0] = par;
+    for(ll i = 1; i <= LOG; i++)
+        parent[root][i] = parent[parent[root][i - 1]][i - 1];
+
+    for(const auto &i : graph[root])
+    {
+        if(i == par) continue;
+        depth[i] = depth[root] + 1;
+        init(i, root);
+    }
+
+    out[root] = ++timer;
+    a[timer] = root;
+
+    return;
+}
+
+ll getKthAncestor(ll root, ll k)
+{
+    if(k > depth[root]) return -1;
+
+    for(ll i = LOG; i >= 0; i--)
+        if(k & (1ll << i))
+            root = parent[root][i];
+
+    return root;
+}
+
+ll lca(ll u, ll v)
+{
+    if(depth[u] > depth[v]) swap(u, v);
+
+    v = getKthAncestor(v, depth[v] - depth[u]);
+
+    if(u == v) return u;
+
+    for(ll i = LOG; i >= 0; i--)
+        if(parent[u][i] != parent[v][i])
+            u = parent[u][i], v = parent[v][i];
+
+    return parent[u][0];
+}
+
+struct Query
+{
+    ll l, r, lc, queryIdx, blockIdx;
+
+    Query() { }
+
+    Query(ll _l, ll _r, ll _lc, ll _queryIdx)
+    {
+        l = _l;
+        r = _r;
+        lc = _lc;
+        queryIdx = _queryIdx;
+        blockIdx = (ll)_l/SQ;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        if(blockIdx != other.blockIdx) return blockIdx < other.blockIdx;
+
+        // return r < other.r; // Normal sorting
+        return (blockIdx % 2 == 0 ? r < other.r : r > other.r); // ZigZag sorting (little optimization in time!)
+    }
+};
+vector < Query > queries;
+
+inline void add(ll idx)
+{
+    ll u = a[idx];
+
+    if(!freq[w[u]]) res++;
+    freq[w[u]]++;
+}
+
+inline void remove(ll idx)
+{
+    ll u = a[idx];
+
+    freq[w[u]]--;
+    if(!freq[w[u]]) res--;
+}
+
+inline void modify(ll idx)
+{
+    ll u = a[idx];
+
+    if(vis[u]) remove(idx);
+    else add(idx);
+
+    vis[u] ^= 1;
+}
+
+void MOonPath()
+{
+    sort(all(queries));
+
+    ll l = 1, r = 0;
+    for(ll i = 0; i < q; i++)
+    {
+        while(l > queries[i].l) modify(--l);
+        while(r < queries[i].r) modify(++r);
+        while(l < queries[i].l) modify(l++);
+        while(r > queries[i].r) modify(r--);
+
+        // add lca
+        if(queries[i].lc != a[l] && queries[i].lc != a[r]) modify(in[queries[i].lc]);
+        ans[queries[i].queryIdx] = res;
+        if(queries[i].lc != a[l] && queries[i].lc != a[r]) modify(in[queries[i].lc]);
+    }
+
+    // reset (save time, instead clearing data)
+    ll x = 1, y = 0;
+    while(l > x) modify(--l);
+    while(r < y) modify(++r);
+    while(l < x) modify(l++);
+    while(r > y) modify(r--);
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+    timer = 0;
+    for(ll i = 0; i <= n; i++)
+        graph[i].clear();
+}
+
+
+
+void solve()
+{
+
+    cin >> n >> q;
+    clear();
+    for(ll i = 1; i <= n; i++) cin >> w[i], w[i] = get(w[i]);
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+
+    init();
+
+    queries.assign(q, Query());
+    for(ll i = 0; i < q; i++)
+    {
+        ll u, v; cin >> u >> v;
+
+        if(in[u] > in[v]) swap(u, v);
+
+        ll lc = lca(u, v);
+
+        if(lc == u) queries[i] = Query(in[u], in[v], lc, i);
+        else queries[i] = Query(out[u], in[v], lc, i);
+    }
+
+    MOonPath();
+
+    for(ll i = 0; i < q; i++)
+        cout << ans[i] << endl;
+
+
+
+    return;
+}
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (4) Mo on Path with update (each node have weight)                    */
+// Dynamic Offline range queries in O(q * n^(2/3)) = O(n^(5/3))
+// u can update node only not a range
+// if TLE use different SQ: n^(2/3), (2 * n^(2))^(1/3), ...
+// the add/remove operations must take O(1), or it will TLE!
+//
+
+
+
+// problem statement:
+// given tree, where each node have a weight.
+// given queries: update the weight of a node, get the sum of the path between two nodes
+// https://cses.fi/problemset/task/1138/
+
+
+
+// variables
+const ll N = (ll)2e5 + 5, M = (ll)2e5 + 5, LOG = 22;
+const ll SQ = 3500;
+ll n, q, w[N];
+vector < ll > graph[N];
+int in[N], out[N], a[2*N], tt = 0;
+int depth[N], parent[N][LOG + 1];
+bool vis[N];
+ll freq[2*N], res = 0;
+ll ans[M];
+
+
+
+// build
+void init(ll root = 1, ll par = 0)
+{
+    in[root] = ++tt;
+    a[tt] = root;
+
+    parent[root][0] = par;
+    for(ll i = 1; i <= LOG; i++)
+        parent[root][i] = parent[parent[root][i - 1]][i - 1];
+
+    for(const auto &i : graph[root])
+    {
+        if(i == par) continue;
+        depth[i] = depth[root] + 1;
+        init(i, root);
+    }
+
+    out[root] = ++tt;
+    a[tt] = root;
+
+    return;
+}
+
+ll getKthAncestor(ll root, ll k)
+{
+    if(k > depth[root]) return -1;
+
+    for(ll i = LOG; i >= 0; i--)
+        if(k & (1ll << i))
+            root = parent[root][i];
+
+    return root;
+}
+
+ll lca(ll u, ll v)
+{
+    if(depth[u] > depth[v]) swap(u, v);
+
+    v = getKthAncestor(v, depth[v] - depth[u]);
+
+    if(u == v) return u;
+
+    for(ll i = LOG; i >= 0; i--)
+        if(parent[u][i] != parent[v][i])
+            u = parent[u][i], v = parent[v][i];
+
+    return parent[u][0];
+}
+
+struct Update
+{
+    ll pos, prevVal, newVal;
+    Update() { }
+    Update(ll _pos, ll _prevVal, ll _newVal) : pos(_pos), prevVal(_prevVal), newVal(_newVal) { }
+};
+vector < Update > updates;
+
+struct Query
+{
+    ll l, r, lc, t, queryIdx, blockIdx, blockL, blockR;
+
+    Query() { }
+
+    Query(ll _l, ll _r, ll _lc, ll _t, ll _queryIdx)
+    {
+        l = _l;
+        r = _r;
+        lc = _lc;
+        t = _t;
+        queryIdx = _queryIdx;
+        blockL = (ll)_l/SQ;
+        blockR = (ll)_r/SQ;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        if(blockL != other.blockL) return blockL < other.blockL;
+        // if(blockR != other.blockR) return blockR < other.blockR;
+        if(blockR != other.blockR) return (blockL % 2 == 0) ? (blockR < other.blockR) : (blockR > other.blockR);
+        return t < other.t;
+    }
+};
+vector < Query > queries;
+
+inline void add(ll idx)
+{
+    ll u = a[idx];
+
+    res += w[u];
+}
+
+inline void remove(ll idx)
+{
+    ll u = a[idx];
+
+    res -= w[u];
+}
+
+inline void modify(ll idx)
+{
+    ll u = a[idx];
+
+    if(vis[u]) remove(idx);
+    else add(idx);
+
+    vis[u] ^= 1;
+}
+
+inline void update(ll pos, ll val, ll l, ll r)
+{
+    ll u = a[pos];
+
+    if(vis[u]) remove(pos);
+    w[u] = val;
+    if(vis[u]) add(pos);
+}
+
+void MOonPathWithUpdate(ll x)
+{
+    sort(all(queries));
+
+    ll l = 1, r = 0, t = x;
+    for(const auto &i : queries)
+    {
+        while(t < i.t) update(updates[t].pos, updates[t].newVal, l, r), t++;
+        while(t > i.t) t--, update(updates[t].pos, updates[t].prevVal, l, r);
+
+        while(l > i.l) modify(--l);
+        while(r < i.r) modify(++r);
+        while(l < i.l) modify(l++);
+        while(r > i.r) modify(r--);
+
+        if(i.lc != a[l] && i.lc != a[r]) modify(in[i.lc]);
+        ans[i.queryIdx] = res;
+        if(i.lc != a[l] && i.lc != a[r]) modify(in[i.lc]);
+    }
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+    res = 0;
+    tt = 0;
+
+    for(ll i = 0; i <= n; i++)
+    {
+        graph[i].clear();
+        vis[i] = 0;
+        freq[i] = 0;
+    }
+}
+
+void solve()
+{
+
+    cin >> n >> q;
+    // clear();
+    for(ll i = 1; i <= n; i++) cin >> w[i];
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+
+    init();
+
+    queries.clear();
+    updates.clear();
+    for(ll i = 0; i < q; i++)
+    {
+        ll op; cin >> op;
+
+        if(op == 1)
+        {
+            ll u, val; cin >> u >> val;
+
+            updates.emplace_back(in[u], w[u], val);
+            // updates.emplace_back(out[u], w[u], val); // we don't need it bcos we update w[u], not a[in[u]]
+            w[u] = val;
+        }
+        else
+        {
+            ll u = 1, v; cin >> v; // ??
+
+            if(in[u] > in[v]) swap(u, v);
+
+            ll lc = lca(u, v);
+
+            if(lc == u) queries.emplace_back(in[u], in[v], lc, (ll)updates.size(), (ll)queries.size());
+            else queries.emplace_back(out[u], in[v], lc, (ll)updates.size(), (ll)queries.size());
+        }
+    }
+
+    MOonPathWithUpdate((ll)updates.size());
+
+    for(ll i = 0; i < (ll)queries.size(); i++)
+        cout << ans[i] << endl;
+
+
+
+    return;
+}
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (5) Mo on Path (each edge have weight)                    */
+// Static Offline range queries on the path between any two nodes in O(n * SQ)
+// Time Complexity: O((SQ*q + (n/SQ)*n) * F)
+//                  O((n + q) * SQ * F), where O(F) is the complexity of add/remove
+//
+// u----v, where in[u] < in[v]
+// let lc = lca(u, v)
+// if(lc == u) query on [in[u], in[v]]
+// else query on [out[u], in[v]] + [in[lc], in[lc]]
+// and every root that occurs twice are deleted
+// see this blog for more informations: htimerps://codeforces.com/blog/entry/43230
+//
+//
+// Tricks:
+//
+
+
+
+// problem statement:
+// given tree, each edge have a weight.
+// given queries: get the mex of the path from u to v.
+// https://vjudge.net/contest/761455#problem/Y
+
+
+
+// variables
+const ll N = (ll)1e5 + 5, M = (ll)1e5 + 5, LOG = 22;
+const ll SQ = (ll)sqrtl(2*N) + 1ll;
+ll n, q, w[N];
+vector < pair < ll, ll > > graph[N];
+ll in[N], out[N], a[2*N], timer = 0;
+ll depth[N], parent[N][LOG + 1];
+bool vis[N];
+ll freq[2*N], res = 0;
+ll ans[M];
+
+
+
+// build
+void init(ll root = 1, ll par = 0)
+{
+    in[root] = ++timer;
+    a[timer] = root;
+
+    parent[root][0] = par;
+    for(ll i = 1; i <= LOG; i++)
+        parent[root][i] = parent[parent[root][i - 1]][i - 1];
+
+    for(const auto &i : graph[root])
+    {
+        if(i.first == par) continue;
+        w[i.first] = i.second;
+        depth[i.first] = depth[root] + 1;
+        init(i.first, root);
+    }
+
+    out[root] = ++timer;
+    a[timer] = root;
+
+    return;
+}
+
+ll getKthAncestor(ll root, ll k)
+{
+    if(k > depth[root]) return -1;
+
+    for(ll i = LOG; i >= 0; i--)
+        if(k & (1ll << i))
+            root = parent[root][i];
+
+    return root;
+}
+
+ll lca(ll u, ll v)
+{
+    if(depth[u] > depth[v]) swap(u, v);
+
+    v = getKthAncestor(v, depth[v] - depth[u]);
+
+    if(u == v) return u;
+
+    for(ll i = LOG; i >= 0; i--)
+        if(parent[u][i] != parent[v][i])
+            u = parent[u][i], v = parent[v][i];
+
+    return parent[u][0];
+}
+
+struct Query
+{
+    ll l, r, lc, queryIdx, blockIdx;
+
+    Query() { }
+
+    Query(ll _l, ll _r, ll _lc, ll _queryIdx)
+    {
+        l = _l;
+        r = _r;
+        lc = _lc;
+        queryIdx = _queryIdx;
+        blockIdx = (ll)_l/SQ;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        if(blockIdx != other.blockIdx) return blockIdx < other.blockIdx;
+
+        // return r < other.r; // Normal sorting
+        return (blockIdx % 2 == 0 ? r < other.r : r > other.r); // ZigZag sorting (little optimization in time!)
+    }
+};
+vector < Query > queries;
+
+inline void add(ll idx)
+{
+    ll u = a[idx];
+    if(w[u] > n) return;
+
+    freq[w[u]]++;
+    while(freq[res]) res++;
+}
+
+inline void remove(ll idx)
+{
+    ll u = a[idx];
+    if(w[u] > n) return;
+
+    freq[w[u]]--;
+    if(!freq[w[u]]) res = min(res, w[u]);
+}
+
+inline void modify(ll idx)
+{
+    ll u = a[idx];
+
+    if(vis[u]) remove(idx);
+    else add(idx);
+
+    vis[u] ^= 1;
+}
+
+void MOonPath()
+{
+    sort(all(queries));
+
+    ll l = 1, r = 0;
+    for(ll i = 0; i < q; i++)
+    {
+
+        while(l > queries[i].l) modify(--l);
+        while(r < queries[i].r) modify(++r);
+        while(l < queries[i].l) modify(l++);
+        while(r > queries[i].r) modify(r--);
+
+        ans[queries[i].queryIdx] = res;
+    }
+
+    // reset (save time, instead clearing data)
+    ll x = 1, y = 0;
+    while(l > x) modify(--l);
+    while(r < y) modify(++r);
+    while(l < x) modify(l++);
+    while(r > y) modify(r--);
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+    timer = 0;
+    for(ll i = 0; i <= n; i++)
+        graph[i].clear();
+}
+
+void solve()
+{
+
+    cin >> n >> q;
+    clear();
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v, wt; cin >> u >> v >> wt;
+        graph[u].push_back({v, wt});
+        graph[v].push_back({u, wt});
+    }
+
+    init();
+
+    queries.assign(q, Query());
+    for(ll i = 0; i < q; i++)
+    {
+        ll u, v; cin >> u >> v;
+
+        if(in[u] > in[v]) swap(u, v);
+
+        ll lc = lca(u, v);
+        if(lc == u) queries[i] = Query(in[u] + 1, in[v], lc, i);
+        else queries[i] = Query(out[u], in[v], lc, i);
+    }
+
+    MOonPath();
+
+    for(ll i = 0; i < q; i++)
+        cout << ans[i] << endl;
+
+/*
+7 6
+2 1 1
+3 1 2
+1 4 0
+4 5 1
+5 6 3
+5 7 4
+1 3
+4 1
+2 4
+2 5
+3 5
+3 7
+*/
+
+    return;
+}
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

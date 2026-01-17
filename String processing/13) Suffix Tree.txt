@@ -1,0 +1,8 @@
+
+
+// every node is a substring which is a prefix of a suffix
+
+
+
+
+

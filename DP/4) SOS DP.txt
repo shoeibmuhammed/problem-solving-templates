@@ -1,0 +1,102 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      SOS(Sum Over Subsets) DP                                      */
+// Time Complexity: O(n * 2^(n))
+// mask1 is a subset of mask2, if zero bits in mask2 correspond to zero bits in mask1, and one bits in mask2 correspond to zero/one bits in mask1.
+// mask1 is a superset of mask2, if one bits in mask2 correspond to one bits in mask1, and zero bits in mask2 correspond to zero/one bits in mask1.
+//
+// keywords: subset, count, and, or, xor,
+//
+// Tricks:
+//        1) x|y=x --> y is a subset of x, x&y=x --> y is a superset of x, x&y=0 --> y is a subset of ~x or x is a subset of ~y.
+//        2) take not
+//        3)
+//
+// prblems:
+//
+
+
+ll mod_exp(ll x, ll n, ll m = mod)
+{ ll res = 1; while(n) { if(n % 2) res = (((res % m) * (x % m)) % m);
+    x = (((x % m) * (x % m)) % m); n /= 2; } return res; }
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_inv(ll x, ll m = mod){ return mod_exp(x , m - 2, m); }
+ll mod_div(ll x, ll y, ll m = mod){ return mod_mul(x, mod_inv(y, m), m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+
+
+const ll lg = 20;
+const ll MXlg = (1ll << lg); // 1e6 (23 --> 8e6)
+
+
+// elements contribute to it's superset (count no. of subsets for each mask).
+void forward1(vector < ll > &dp)
+{
+    for(ll bit = 0; bit < lg; bit++)
+    {
+        for(ll mask = 0; mask < MXlg; mask++)
+        {
+            if((mask >> bit) & 1ll)
+            {
+                dp[mask] += dp[(mask ^ (1ll << bit))];
+                // dp[mask] = mod_add(dp[mask], dp[(mask ^ (1ll << bit))]);
+            }
+        }
+    }
+}
+
+// undo forward1() - remove contribution of subsets from supersets.
+void backward1(vector < ll > &dp)
+{
+    for(ll bit = 0; bit < lg; bit++)
+    {
+        for(ll mask = MXlg - 1; mask >= 0; mask--)
+        {
+            if((mask >> bit) & 1ll)
+            {
+                dp[mask] -= dp[(mask ^ (1ll << bit))];
+                // dp[mask] = mod_sub(dp[mask], dp[(mask ^ (1ll << bit))]);
+            }
+        }
+    }
+}
+
+
+// elements contribute to it's subset (count no. of supersets for each mask).
+void forward2(vector < ll > &dp)
+{
+    for(ll bit = 0; bit < lg; bit++)
+    {
+        for(ll mask = MXlg - 1; mask >= 0; mask--)
+        {
+            if((mask >> bit) & 1ll)
+            {
+                dp[(mask ^ (1ll << bit))] += dp[mask];
+                // dp[(mask ^ (1ll << bit))] = mod_add(dp[(mask ^ (1ll << bit))], dp[mask]);
+            }
+        }
+    }
+}
+
+// undo forward2() - remove contribution of supersets from subsets.
+void backward2(vector < ll > &dp)
+{
+    for(ll bit = 0; bit < lg; bit++)
+    {
+        for(ll mask = MXlg - 1; mask >= 0; mask--)
+        {
+            if((mask >> bit) & 1ll)
+            {
+                dp[(mask ^ (1ll << bit))] -= dp[mask];
+                // dp[(mask ^ (1ll << bit))] = mod_sub(dp[(mask ^ (1ll << bit))], dp[mask]);
+            }
+        }
+    }
+}
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

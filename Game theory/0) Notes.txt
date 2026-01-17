@@ -1,0 +1,29 @@
+//.................................................................................................................................................................................
+
+
+
+//
+// (1) if in ur turn, u break the component into smaller ones, then the grundy number is the xor of their grundy numbers,
+//     if the number of components is even then grundy value is 0, else grundy value of one component of them.
+// each transition can lead to a sum of independent games (one game in the degenerate case), calculate the Grundy value for each independent game and xor-sum them.
+// https://www.hackerrank.com/contests/5-days-of-game-theory/challenges/tower-breakers-3/problem
+// https://cses.fi/problemset/task/2207
+// https://www.hackerrank.com/contests/5-days-of-game-theory/challenges/digits-square-board/problem
+//
+// (2) Misère Nim: If not all piles contains one stone, then if the xor is non-zero --> i can always win if i want, and i can always lose if i want.
+//                 a small edge case that where all piles contain only 1 stone! (n even --> u win, else the opponent)
+//
+// (3) Poker Nim:
+//
+// (4) may be the sequence start with small bad numbers, then there'll be a pattern
+//
+// (5) grundy(n, k) = n % (k + 1), where u pick 1...k balls
+//
+// (6) may be there is no zeros after some small number, so dp on the first small range --> check the zeros
+//
+//
+
+
+//.................................................................................................................................................................................
+
+

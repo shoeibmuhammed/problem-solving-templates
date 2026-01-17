@@ -1,0 +1,583 @@
+//.................................................................................................................................................................................
+
+
+
+/*              Matrix Exponentiation               */
+// Tricks:
+//         (1) shift trick
+//         (2) prefix sum trick (at most keyword)
+//         (3) +C trick
+//         (4) +i trick
+//         (5) +i² trick
+//         (6) + i^m trick --> (i + 1)^m = sum k=0->k=n (nCk * i^k)
+//         (7) queries trick in O(q * m² * log2(n))
+//         (8) segment tree of matricies trick
+//         (9) counting paths trick --> (adjancey matrix)^k = number of paths of length k between every two nodes
+//         (10) counting the min cost path in a weighted directed graph trick
+//         (11) convert simple problem (form a sequence of numbers) to graph trick
+//         (12)
+//
+
+
+//.................................................................................................................................................................................
+
+
+
+/*              Matrix Exponentiation               */
+// Time Complexity: O(m³ * log2(n) + m³)
+//
+
+
+
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+
+struct Matrix
+{
+    ll n, m;
+    vector < vector < ll > > a;
+
+    Matrix() { }
+
+    Matrix(ll _n, ll _m) : n(_n), m(_m) { a.assign(n, vector < ll >(m, 0)); }
+
+    Matrix(const vector < vector < ll > > &v)
+    {
+        n = (ll)v.size();
+        m = n ? (ll)v[0].size() : 0;
+        a = v;
+    }
+
+    inline void makeIdentity()
+    {
+        assert(n == m);
+        for(ll i = 0; i < n; i++)
+            for(ll j = 0; j < n; j++)
+                a[i][j] = (i == j);
+    }
+
+    inline Matrix operator + (const Matrix &b) const
+    {
+        assert(n == b.n && m == b.m);
+
+        Matrix ans = Matrix(n, m);
+        for(ll i = 0; i < n; i++)
+            for(ll j = 0; j < m; j++)
+                ans.a[i][j] = mod_add(a[i][j], b.a[i][j]);
+
+        return ans;
+    }
+
+    inline Matrix operator - (const Matrix &b) const
+    {
+        assert(n == b.n && m == b.m);
+
+        Matrix ans = Matrix(n, m);
+        for(ll i = 0; i < n; i++)
+            for(ll j = 0; j < m; j++)
+                ans.a[i][j] = mod_sub(a[i][j], b.a[i][j]);
+
+        return ans;
+    }
+
+    inline Matrix operator * (const Matrix &b) const
+    {
+        assert(m == b.n);
+
+        Matrix ans = Matrix(n, b.m);
+
+        for(ll i = 0; i < n; i++)
+            for(ll k = 0; k < m; k++)
+                if(a[i][k])
+                    for(ll j = 0; j < b.m; j++)
+                        ans.a[i][j] = mod_add(ans.a[i][j], mod_mul(a[i][k], b.a[k][j]));
+
+        return ans;
+    }
+
+    inline Matrix& operator += (const Matrix& b) { return *this = (*this) + b; }
+
+    inline Matrix& operator -= (const Matrix& b) { return *this = (*this) - b; }
+
+    inline Matrix& operator *= (const Matrix& b) { return *this = (*this) * b; }
+
+    inline bool operator == (const Matrix& b) const { return a == b.a; }
+
+    inline bool operator != (const Matrix& b) const { return a != b.a; }
+
+    Matrix pow(ll k) const
+    {
+        assert(n == m && k >= 0);
+
+        Matrix res(n, n); res.makeIdentity();
+        Matrix curr = *this;
+        while (k)
+        {
+            if(k & 1ll) res *= curr;
+            curr *= curr;
+            k >>= 1ll;
+        }
+        return res;
+    }
+    inline void exp(ll k)
+    {
+        assert(n == m && k >= 0);
+        *this = pow(k);
+    }
+
+    void display() const
+    {
+        for(const auto &i : a)
+        {
+            for(const auto &j : i) cout << j << ' ';
+            cout << endl;
+        }
+        return;
+    }
+};
+
+
+
+//.................................................................................................................................................................................
+
+
+
+/*              Matrix Exponentiation               */
+// works for long doubles!
+struct Matrix
+{
+    ll n, m;
+    vector < vector < ld > > a;
+
+    Matrix() { }
+
+    Matrix(ll _n, ll _m) : n(_n), m(_m) { a.assign(n, vector < ld >(m, 0)); }
+
+    Matrix(const vector < vector < ld > > &v)
+    {
+        n = (ll)v.size();
+        m = n ? (ll)v[0].size() : 0;
+        a = v;
+    }
+
+    inline void makeIdentity()
+    {
+        assert(n == m);
+        for(ll i = 0; i < n; i++)
+            for(ll j = 0; j < n; j++)
+                a[i][j] = (i == j);
+    }
+    inline Matrix operator + (const Matrix &b) const
+    {
+        assert(n == b.n && m == b.m);
+
+        Matrix ans = Matrix(n, m);
+        for(ll i = 0; i < n; i++)
+            for(ll j = 0; j < m; j++)
+                ans.a[i][j] = (a[i][j] + b.a[i][j]);
+
+        return ans;
+    }
+
+    inline Matrix operator - (const Matrix &b) const
+    {
+        assert(n == b.n && m == b.m);
+
+        Matrix ans = Matrix(n, m);
+        for(ll i = 0; i < n; i++)
+            for(ll j = 0; j < m; j++)
+                ans.a[i][j] = (a[i][j] - b.a[i][j]);
+
+        return ans;
+    }
+
+    inline Matrix operator * (const Matrix &b) const
+    {
+        assert(m == b.n);
+
+        Matrix ans = Matrix(n, b.m);
+
+        for(ll i = 0; i < n; i++)
+            for(ll k = 0; k < m; k++)
+                if(a[i][k])
+                    for(ll j = 0; j < b.m; j++)
+                        ans.a[i][j] += (a[i][k] * b.a[k][j]);
+
+        return ans;
+    }
+
+    inline Matrix& operator += (const Matrix& b) { return *this = (*this) + b; }
+
+    inline Matrix& operator -= (const Matrix& b) { return *this = (*this) - b; }
+
+    inline Matrix& operator *= (const Matrix& b) { return *this = (*this) * b; }
+
+    Matrix pow(ll k) const
+    {
+        assert(n == m && k >= 0);
+
+        Matrix res(n, n); res.makeIdentity();
+        Matrix curr = *this;
+        while (k)
+        {
+            if(k & 1ll) res *= curr;
+            curr *= curr;
+            k >>= 1ll;
+        }
+        return res;
+    }
+    inline void exp(ll k)
+    {
+        assert(n == m && k >= 0);
+        *this = pow(k);
+    }
+};
+
+
+
+//.................................................................................................................................................................................
+
+
+
+/*                         Segment Tree of Matricies                         */
+// https://codeforces.com/gym/102644/problem/H
+
+
+
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+struct Node
+{
+
+    ll x11, x12, x21, x22;
+
+    Node() // neutral
+    {
+        x11 = x22 = 1;
+        x12 = x21 = 0;
+    }
+
+    Node(ll _x11, ll _x12, ll _x21, ll _x22)
+    {
+        x11 = _x11;
+        x12 = _x12;
+        x21 = _x21;
+        x22 = _x22;
+    }
+
+    void change(ll _x11, ll _x12, ll _x21, ll _x22)
+    {
+        x11 = _x11;
+        x12 = _x12;
+        x21 = _x21;
+        x22 = _x22;
+    }
+};
+
+
+struct segTree
+{
+
+    ll leaf_size, tree_size;
+    vector < Node > segData;
+
+    segTree(ll n)
+    {
+        leaf_size = 1;
+        while(leaf_size < n) leaf_size *= 2;
+        tree_size = 2 * leaf_size;
+        segData.resize(tree_size, Node());
+    }
+
+    Node merge(Node &lf, Node &ri)
+    {
+        Node ans = Node();
+
+        ans.x11 = mod_add(mod_mul(lf.x11, ri.x11), mod_mul(lf.x12, ri.x21));
+        ans.x12 = mod_add(mod_mul(lf.x11, ri.x12), mod_mul(lf.x12, ri.x22));
+        ans.x21 = mod_add(mod_mul(lf.x21, ri.x11), mod_mul(lf.x22, ri.x21));
+        ans.x22 = mod_add(mod_mul(lf.x21, ri.x12), mod_mul(lf.x22, ri.x22));
+
+        return ans;
+    }
+
+    void init(string &s, ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1)
+        {
+            if(lx < (ll)s.size())
+            {
+                if(s[lx] == '?') segData[ni] = Node(19, 7, 6, 20);
+                else if(s[lx] == 'A' || s[lx] == 'E' || s[lx] == 'I' || s[lx] == 'O' || s[lx] == 'U') segData[ni] = Node(0, 1, 1, 0);
+                else if(s[lx] == 'H') segData[ni] = Node(1, 0, 1, 0);
+                else if(s[lx] == 'S' || s[lx] == 'D') segData[ni] = Node(0, 1, 0, 1);
+                else segData[ni] = Node(1, 0, 0, 1);
+            }
+            else
+            {
+                segData[ni] = Node();
+            }
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        init(s, 2*ni + 1, lx, mid);
+        init(s, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void init(string &s) { init(s, 0, 0, leaf_size); }
+
+    void set(ll idx, char val, ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1)
+        {
+            if(val == '?') segData[ni].change(19, 7, 6, 20);
+            else if(val == 'A' || val == 'E' || val == 'I' || val == 'O' || val == 'U') segData[ni].change(0, 1, 1, 0);
+            else if(val == 'H') segData[ni].change(1, 0, 1, 0);
+            else if(val == 'S' || val == 'D') segData[ni].change(0, 1, 0, 1);
+            else segData[ni].change(1, 0, 0, 1);
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+
+        if(idx < mid) set(idx, val, 2*ni + 1, lx, mid);
+        else  set(idx, val, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void set_node(ll idx, char val) { set(idx, val, 0, 0, leaf_size); }
+
+    Node get(ll l, ll r, ll ni, ll lx, ll rx)
+    {
+        if(lx >= r || rx <= l) return Node();
+
+        if(l <= lx && rx <= r)  return segData[ni];
+
+        ll mid = (lx + rx) / 2;
+        Node lf = get(l, r, 2*ni + 1, lx, mid);
+        Node ri = get(l, r, 2*ni + 2, mid, rx);
+
+        if(r <= mid) return lf;
+        else if(mid <= l) return ri;
+        else return merge(lf, ri);
+    }
+    Node get_range(ll l, ll r) { return get(l, r, 0, 0, leaf_size); }
+    Node get_node(ll idx) { return get(idx, idx + 1, 0, 0, leaf_size); }
+};
+
+
+
+void solve()
+{
+
+    ll n, q; cin >> n >> q;
+    string s; cin >> s;
+
+    segTree st = segTree(n);
+    st.init(s);
+
+    // [1 0] * M2x2 = [M11, M12]
+
+    cout << st.get_range(0, n).x11 << endl;
+
+    while(q--)
+    {
+        ll i; cin >> i; i--;
+        char c; cin >> c;
+        st.set_node(i, c);
+        cout << st.get_range(0, n).x11 << endl;
+    }
+
+    return;
+}
+
+
+
+//.................................................................................................................................................................................
+
+
+
+// given n (n <= 100) verticies, m edges
+// count the number of paths of length k https://codeforces.com/gym/102644/problem/D
+// https://cses.fi/problemset/task/1723
+// prefix sum trick: https://codeforces.com/gym/102644/problem/E
+
+
+
+ll n, m, k; cin >> n >> m >> k;
+Matrix T = Matrix(n, n);
+for(ll i = 0; i < m; i++)
+{
+    ll u, v; cin >> u >> v;
+    u--; v--;
+    T.a[u][v]++; // takecare =1 is wrong!
+}
+
+T.exp(k); // T.a[i][j] = the number of different paths of length k that start from i --> j
+ll sm = 0;
+for(const auto &i : T.a)
+    for(const auto &j : i)
+        sm = mod_add(sm, j);
+cout << sm << endl; // number of pathes of length k
+
+
+
+//.................................................................................................................................................................................
+
+
+
+// queries trick:
+// given n (n <= 200) verticies, m edges
+// given q (q <= 200) queries, count paths consisting of k steps (edges) from vertex s to vertex t.
+// https://codeforces.com/gym/102644/problem/I
+
+
+
+ll n, m, q; cin >> n >> m >> q;
+vector < Matrix > T(30, Matrix(n, n));
+for(ll i = 0; i < m; i++)
+{
+    ll u, v; cin >> u >> v;
+    u--; v--;
+    T[0].a[u][v] = 1;
+}
+
+for(ll i = 1; i < 30; i++) T[i] = T[i - 1] * T[i - 1];
+
+while(q--)
+{
+    ll s, t, k; cin >> s >> t >> k;
+    s--; t--;
+
+    vector < ll > v(n), tmp(n);
+    v[s] = 1;
+
+    for(ll i = 0; i < 30; i++)
+    {
+        if(!((k >> i) & 1ll)) continue;
+
+        for(ll j = 0; j < n; j++)
+        {
+            ll x = 0;
+            for(ll j2 = 0; j2 < n; j2++)
+                x = mod_add(x, mod_mul(v[j2], T[i].a[j2][j]));
+            tmp[j] = x;
+        }
+        v = tmp;
+    }
+
+    cout << v[t] << endl;
+}
+
+
+
+//.................................................................................................................................................................................
+
+
+
+// given n (n <= 100) verticies, m edges
+// count the min path cost of length k among all paths of length k
+// https://codeforces.com/gym/102644/problem/F
+// https://cses.fi/problemset/task/1724
+
+
+
+struct Matrix
+{
+    ll n, m;
+    vector < vector < ll > > a;
+
+    Matrix() { }
+
+    Matrix(ll _n, ll _m) : n(_n), m(_m) { a.assign(n, vector < ll >(m, 4*oo)); }
+
+    Matrix(const vector < vector < ll > > &v)
+    {
+        n = (ll)v.size();
+        m = n ? (ll)v[0].size() : 0;
+        a = v;
+    }
+
+    inline void makeIdentity()
+    {
+        assert(n == m);
+        for(ll i = 0; i < n; i++)
+            for(ll j = 0; j < n; j++)
+                if(i == j)
+                    a[i][j] = 0;
+    }
+
+    inline Matrix operator * (const Matrix &b) const
+    {
+        assert(m == b.n);
+
+        Matrix ans = Matrix(n, b.m);
+
+        for(ll i = 0; i < n; i++)
+            for(ll k = 0; k < m; k++)
+                for(ll j = 0; j < b.m; j++)
+                    ans.a[i][j] = min(ans.a[i][j], (a[i][k] + b.a[k][j])); // modified!
+
+        return ans;
+    }
+
+    inline Matrix& operator *= (const Matrix& b) { return *this = (*this) * b; }
+
+    Matrix pow(ll k) const
+    {
+        assert(n == m && k >= 0);
+
+        Matrix res(n, n); res.makeIdentity();
+        Matrix curr = *this;
+        while (k)
+        {
+            if(k & 1ll) res *= curr;
+            curr *= curr;
+            k >>= 1ll;
+        }
+        return res;
+    }
+    inline void exp(ll k)
+    {
+        assert(n == m && k >= 0);
+        *this = pow(k);
+    }
+};
+
+
+
+void solve()
+{
+
+    ll n, m, k; cin >> n >> m >> k;
+    Matrix T = Matrix(n, n);
+    for(ll i = 0; i < m; i++)
+    {
+        ll u, v, c; cin >> u >> v >> c;
+        u--; v--;
+        T.a[u][v] = min(T.a[u][v], c);
+    }
+
+    T.exp(k); // T.a[i][j] --> the min path cost of length k that srart from i --> j
+
+    ll mn = 4*oo;
+    for(ll i = 0; i < n; i++)
+        for(ll j = 0; j < n; j++)
+            mn = min(mn, T.a[i][j]);
+    if(mn > oo) cout << "IMPOSSIBLE" << endl;
+    else cout << mn << endl;
+
+
+
+    return;
+}
+
+
+
+//.................................................................................................................................................................................
+
+

@@ -1,0 +1,225 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                         (1) Segment Tree                     */
+
+// update node, get node/range in O(logn)
+// memory size is O(4n), height of segment tree is (logn)
+// every node (i) range is [lx, rx[,
+// node (i) --> left child node is (2*i + 1) with range [lx, (lx + rx)/2[,
+//              right child node is (2*i + 2) with range [(lx + rx)/2, rx[.
+//
+// maximum subarray sum (empty allowed): https://cses.fi/problemset/result/15133860/
+//
+//
+
+struct Node
+{
+
+    ll sm;
+
+    Node() // neutral
+    {
+        sm = 0;
+    }
+
+    Node(ll x)
+    {
+        sm = x;
+    }
+
+    void change(ll x) // change or modify
+    {
+        sm = x;
+    }
+
+};
+
+
+struct segTree
+{
+
+    ll leaf_size, tree_size;
+    vector < Node > segData;
+
+    segTree(ll n)
+    {
+        leaf_size = 1;
+        while(leaf_size < n) leaf_size *= 2;
+        tree_size = 2 * leaf_size;
+        segData.resize(tree_size, Node());
+    }
+
+
+
+    // what we do on each two adjacent nodes to get their parent --> modifiable!
+    Node merge(Node &lf, Node &ri)
+    {
+        Node ans = Node();
+
+
+        // operations to get ans (parent) node
+        ans.sm = lf.sm + ri.sm;
+
+
+        return ans;
+    }
+
+
+
+    // initialization with values in O(n)
+    void init(vector < ll > &a, ll ni, ll lx, ll rx)
+    {
+        if(rx - lx == 1)
+        {
+            if(lx < (ll)a.size())
+                segData[ni] = Node(a[lx]);
+            else
+                segData[ni] = Node();
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+        init(a, 2*ni + 1, lx, mid);
+        init(a, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void init(vector < ll > &a) { init(a, 0, 0, leaf_size); }
+
+
+
+    // set node in O(logn)
+    void set(ll idx, ll val, ll ni, ll lx, ll rx) // 0-indexed, [lx, rx[
+    {
+        if(rx - lx == 1)
+        {
+            segData[ni].change(val);
+            return;
+        }
+
+        ll mid = (lx + rx) / 2;
+
+        if(idx < mid)
+            set(idx, val, 2*ni + 1, lx, mid);
+        else
+            set(idx, val, 2*ni + 2, mid, rx);
+
+        segData[ni] = merge(segData[2*ni + 1], segData[2*ni + 2]);
+    }
+    void set_node(ll idx, ll val) { set(idx, val, 0, 0, leaf_size); }
+
+
+
+    // get node/range in O(2*logn)
+    Node get(ll l, ll r, ll ni, ll lx, ll rx) // 0-indexed, [lx, rx[
+    {
+        if(lx >= r || rx <= l) // no intersection --> useless node & it's childs --> return neutral
+            return Node();
+
+        if(l <= lx && rx <= r) // all segments in --> take it
+            return segData[ni];
+
+        // intersection --> go deeper
+        ll mid = (lx + rx) / 2;
+        Node lf = get(l, r, 2*ni + 1, lx, mid);
+        Node ri = get(l, r, 2*ni + 2, mid, rx);
+
+        if(r <= mid) // totally in left
+            return lf;
+        else if(mid <= l) // totally in right
+            return ri;
+        else // merge
+            return merge(lf, ri);
+    }
+    Node get_range(ll l, ll r) { return get(l, r, 0, 0, leaf_size); }
+    Node get_node(ll idx) { return get(idx, idx + 1, 0, 0, leaf_size); }
+
+
+
+    // more methods...
+
+
+
+};
+
+
+
+void solve()
+{
+
+
+    ll n, q; cin >> n >> q;
+    vector < ll > a(n, 0);
+    for(ll i = 0; i < n; i++)
+        cin >> a[i];
+
+    segTree st = segTree(n); // n nodes [0, n[ --> all nodes initialized with neutral!
+    st.init(a); // initialization in O(n) --> always initialize!
+
+
+    while(q--)
+    {
+        ll op; cin >> op;
+
+        if(op == 1)
+        {
+            // idx (1-indexed) --> idx--
+            ll idx, val; cin >> idx >> val;
+            idx--;
+
+            st.set_node(idx, val);
+        }
+        else
+        {
+            // l, r (1-indexed) --> l--, r (not included)  -->  [l, r[
+            ll l, r; cin >> l >> r;
+            l--;
+
+            cout << st.get_range(l, r).sm << endl;
+//            cout << st.get_node(l).sm << endl;
+        }
+
+    }
+
+
+
+
+    return;
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+struct Node
+{
+
+    ll sm, mx, left, right;
+
+    Node() // neutral
+    {
+        sm = 0;
+        left = right = mx = -oo;
+    }
+
+    Node(ll x)
+    {
+        sm = x;
+        mx = left = right = max(0ll, x);
+    }
+
+    void change(ll x) // change or modify
+    {
+        sm = x;
+        mx = left = right = max(0ll, x);
+    }
+
+};
+
+
+// operations to get ans (parent) node
+ans.sm = lf.sm + ri.sm;
+ans.mx = max({lf.mx, ri.mx, lf.right + ri.left});
+ans.left = max(lf.left, lf.sm + ri.left);
+ans.right = max(ri.right, ri.sm + lf.right);

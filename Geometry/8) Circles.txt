@@ -1,0 +1,250 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// squared distance
+T dist2(cT pt1, cT pt2 = {0, 0})
+{
+    T dx = fabsl(pt1.X - pt2.X);
+    T dy = fabsl(pt1.Y - pt2.Y);
+    return dx*dx + dy*dy;
+}
+
+// euclidean distance
+ld dist(cld pt1, cld pt2 = {0.0L, 0.0L})
+{
+    ld dx = fabsl(pt1.X - pt2.X);
+    ld dy = fabsl(pt1.Y - pt2.Y);
+    return (ld)sqrtl(dx*dx + dy*dy);
+    // return (ld)abs(pt1 - pt2);
+    // return (ld)sqrtl(dist2((T)pt1, (T)pt2));
+}
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cT v, cT w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cT v, cT w) { return v.X*w.Y - v.Y*w.X; }
+
+// get the perpendicular vector (rotated 90° anti-clockwise)
+cT perp(cT p) { return {-p.Y, p.X}; }
+
+struct Line
+{
+    cld v; // {b, -a}
+    T c;
+
+    // vector v & constant c
+    Line(cld v, T c) : v(v), c(c) { }
+
+    // ax + by = c
+    Line(T a, T b, T _c)
+    {
+        v = {b, -a};
+        c = _c;
+    }
+
+    // two points on the line (a → b)
+    Line(cld a, cld b)
+    {
+        v = b - a;
+        c = cross(v, a);
+    }
+
+    // return +ve if point p is left to the Line ab, -ve if right to the line, and 0 if on the line
+    T side(cld p) { return cross(v, p) - c; } // ax + by - c
+
+    // length of the perpendicular line of the point p on the line is: |ax + by - c| / sqrtl(a*a + b*b)
+    ld dist(cld p)   { return fabsl(side(p)) / abs(v); }
+    ld sqDist(cld p) { return side(p)*side(p) / (ld)dist2(v);} // dist * dist
+
+    // return a line passes through p and perpendicular on the line
+    Line perpLineThrough(cld p) { return {p, p + perp(p)}; }
+
+    // sorts points in the order of their projection along v.
+    // returns true, if Point p projection on the line lies before point q projection on the line.
+    bool cmpProjection(cld p, cld q) { return dot(v, q) - dot(v, p) > eps; } // > -eps if u want equality
+
+    // translates a line by a vector t
+    Line translate(cld t) { return {v, c + cross(v,t)}; }
+
+    // shifts the line to the left by a distance r (perpendicular to its direction)
+    Line shiftLeft(T r) { return {v, c + r*abs(v)}; }
+
+    // shifts the line to the right by a distance r (perpendicular to its direction)
+    Line shiftRight(T r) { return {v, c - r*abs(v)}; }
+
+    // computes the orthogonal projection point of a point p onto a line
+    cld projection(cld p) { return p - perp(v) * (ld)side(p) / (ld)dist2(v); }
+
+    // computes the reflection point of point p across a line
+    cld reflection(cld p) { return p - perp(v) * 2.0L * (ld)side(p) / (ld)dist2(v); }
+};
+
+// computes the intersection point of two lines
+pair < bool, cld > Lineintersection(Line l1, Line l2)
+{
+    T d = cross(l1.v, l2.v);
+    if(!sgn(d)) return {false, {}}; // or fabsl(d) < eps
+    return {true, (l2.v*(ld)l1.c - l1.v*(ld)l2.c) / (ld)d};
+}
+
+// computes an angle bisector of two (non-parallel) lines l1 and l2 is a line that forms equal angles with l1 and l2
+// interior = 1 means internal bisector, else external bisector
+// interior bisector is a line  whose direction vector points between the direction vectors of l1 and l2
+Line Linebisector(Line l1, Line l2, bool interior = 1)
+{
+    assert(sgn(cross(l1.v, l2.v)) != 0); // l1 and l2 cannot be parallel!
+    ld sign = interior? 1 : -1;
+    return {l2.v/abs(l2.v) + l1.v/abs(l1.v) * sign, l2.c/abs(l2.v) + l1.c/abs(l1.v) * sign};
+}
+
+
+
+/*                              Circle                              */
+// circle (o, r)  (x0 + rcosθ, y0 + rsinθ), where 0 <= θ < 2π
+// equation: (x - x0)^2 + (y - y0)^2 = r^2
+//
+
+
+
+// the circumcircle of three points a, b, and c, is the circle that passes through all three points a, b and c.
+pair < ll, cld > circumCenter(cld a, cld b, cld c)
+{
+    b = b - a, c = c - a;
+    if(!sgn(cross(b, c))) return {0, {}}; // undefined if a, b, c are collinear
+    return {1, a + perp(b * (ld)dist2(c) - c * (ld)dist2(b)) / (ld)cross(b, c) / 2.0L};
+}
+
+// get the points of intersection of a circle and a line
+pair < ll, pair < cld, cld > > circleLineIntersection(cld o, ld r, Line l)
+{
+    pair < cld, cld > out = {{}, {}};
+    ld h2 = r*r - l.sqDist(o);
+    if(sgn(h2) > -1) // intersect or touch
+    {
+        cld p = l.projection(o); // point p (projection)
+        cld h = sqrtl(h2) * l.v / abs(l.v); // vector parallel to l, of length h
+        out = {p - h, p + h};
+    }
+    return {1 + sgn(h2), out};
+}
+
+// get the points of intersection of a circle and a circle
+pair < ll, pair < cld, cld > > circleCircleIntersection(cld o1, ld r1, cld o2, ld r2)
+{
+    pair < cld, cld > out = {{}, {}};
+    cld d = o2 - o1;
+    ld d2 = dist2(d);
+    if(!sgn(d2)) // same center
+    {
+        if(!sgn(r2 - r1)) return {-1, out}; // identical circles  infinity points of intersections
+        return {0, out}; // concentric circles  0 points of intersections
+    }
+
+    ld pd = (d2 + (r1 * r1) - (r2 * r2)) / 2.0;
+    ld h2 = (r1 * r1) - (pd * pd / d2);
+
+    if(sgn(h2) > -1)
+    {
+        cld p = o1 + (d * pd / d2), h = perp(d) * sqrt(h2 / d2);
+        out = {p - h, p + h};
+    }
+
+    return {1 + sgn(h2), out}; // 0 or 1 or 2 points of intersections
+}
+
+// get the area of intersection of two circles
+ld circleCircleIntersectionArea(cld o1, ld r1, cld o2, ld r2)
+{
+    ld d = abs(o1 - o2);
+
+    if(!circleCircleIntersection(o1, r1, o2, r2).first)
+    {
+        if(d - r1 - r2 > -eps) return 0;
+        return pi * min(r1, r2) * min(r1, r2); // concentric circles
+    }
+
+    if(circleCircleIntersection(o1, r1, o2, r2).first == -1) return pi * r1 * r2;
+
+    ld alpha = 2.0L * acosl(clamp((r1*r1 + d*d - r2*r2) / (2.0L * r1 * d), -1.0L, 1.0L));
+    ld beta  = 2.0L * acosl(clamp((r2*r2 + d*d - r1*r1) / (2.0L * r2 * d), -1.0L, 1.0L));
+
+    ld area1 = 0.5L * r1*r1 * (alpha - sinl(alpha));
+    ld area2 = 0.5L * r2*r2 * (beta  - sinl(beta));
+
+    return area1 + area2;
+}
+
+// get the tangent points on the two circles
+// inner = 1, means the inner tangents
+pair < ll, vector < pair < cld, cld > > > tangents(cld o1, ld r1, cld o2, ld r2, bool inner)
+{
+    // the first point is on circle 1, and the second point is on circle 2
+    vector < pair < cld, cld > > out;
+
+    if(inner) r2 = -r2;
+
+    cld d = o2 - o1;
+    ld dr = r1 - r2, d2 = dist2(d), h2 = d2 - dr*dr;
+
+    if(!sgn(d2)) // same center
+    {
+        if(!sgn(r1 - r2)) return {-1, out}; // same radius  identical circles  infinity tangents
+        return {0, out}; // different radius  concentric circles  0 tangents
+    }
+
+    if(sgn(h2) == -1) return {0, out}; // a circle inside the other  0 tangents
+
+    if(!sgn(h2)) // the two circles touches  1 tangents
+    {
+        cld v = d * dr / d2;
+        out.push_back({o1 + v*r1, o2 + v*r2});
+        return {1, out};
+    }
+
+    for(const ld &f : {-1, 1})
+    {
+        cld v = (d*dr + perp(d)*sqrt(h2)*f)/d2;
+        out.push_back({o1 + v*r1, o2 + v*r2});
+    }
+
+    return {2, out};
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//..................................................................................................................................
+
+// get the area of intersection of two circles
+ld x1, y1, r1; cin >> x1 >> y1 >> r1;
+ld x2, y2, r2; cin >> x2 >> y2 >> r2;
+
+ld d = sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));
+if(d > r1 + r2 || max(r1, r2) >  d + min(r1, r2))
+{
+    ne;
+    return;
+}
+
+ld area;
+if(d <= max(r1, r2) - min(r1, r2))
+{
+    area = pi * min(r1,r2) * min(r1,r2);
+}
+else
+{
+    ld theta1 = 2.0 * acos((r2*r2 + d*d - r1*r1) / (2 * r2 * d));
+    ld theta2 = 2.0 * acos((r1*r1 + d*d - r2*r2) / (2 * r1 * d));
+    ld a1 = 0.5 * r2 * r2 * (theta1 - sin(theta1));
+    ld a2 = 0.5 * r1 * r1 * (theta2 - sin(theta2));
+    area = a1 + a2;
+}
+
+//..................................................................................................................................
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

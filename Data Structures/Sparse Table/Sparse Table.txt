@@ -1,0 +1,235 @@
+
+
+/*                         Sparse Table                      */
+// static range queries
+// build Sparse table in O(n * log(n)), memory is O(Bits * N)
+// get element/range in O(Bits) or O(1)
+//
+// Tricks:
+//         1) a%m == b&m  |a - b|%m == 0  biggest m is |a - b|.
+//         2)
+//
+// Problems: https://codeforces.com/contest/2050/problem/F,
+//
+//
+
+const ll N = (ll)2e5 + 5, Bits = 30;
+ll a[N], T[N][Bits], LOG[N];
+ll n, q;
+
+// pre-processing in O(N) for LOG to get queries in O(1)
+void pre_compute()
+{
+    LOG[1] = 0;
+    for(ll i = 2; i < N; i++)
+        LOG[i] = LOG[i/2] + 1;
+}
+
+
+ll merge(ll x, ll y)
+{
+    return (x + y);
+}
+
+
+// build Sparse Table in O(n*logn)
+void build_sparse_table()
+{
+    // 1
+    for(ll i = 0; i < n; i++)
+        T[i][0] = a[i];
+
+    // 2, 4, 8, ...
+    for(ll p = 1; (1ll << p) <= n; p++)
+    {
+        for(ll i = 0; i + (1ll << p) <= n; i++)
+        {
+            T[i][p] = merge(T[i][p - 1], T[i + (1ll << (p - 1))][p - 1]);
+        }
+    }
+}
+
+
+// get query in O(Bits)
+ll query1(ll l, ll r) // 0-indexed, [l, r]
+{
+    ll sz = (r - l + 1);
+
+    ll ret = 0; // neutral
+    for(ll i = Bits - 1; i >= 0; i--)
+    {
+        if((sz >> i) & 1ll)
+        {
+            ret = merge(ret, T[l][i]);
+            l += (1ll << i);
+        }
+    }
+
+    return ret;
+}
+
+
+// get query in O(1)
+// used only when taking duplicates elements in the range query doesn't affect the ret (min, max, gcd, lcm, ...)!
+ll query2(ll l, ll r) // 0-indexed, [l, r]
+{
+    ll sz = (r - l + 1);
+
+//    ll lg = __lg(sz);
+    ll lg = LOG[sz];
+
+    return merge(T[l][lg], T[r - (1ll << lg) + 1][lg]);
+}
+
+
+// Print Sparse Table
+void print_sparse_table()
+{
+    cout << "Sparse Table: " << endl;
+    for(ll i = 0; i < n; i++)
+    {
+        for(ll j = 0; j < Bits; j++)
+        {
+            cout << T[i][j] << ' ';
+        }
+        cout << endl;
+    }
+}
+
+
+void solve()
+{
+
+    cin >> n >> q;
+    for(ll i = 0; i < n; i++)
+        cin >> a[i];
+
+
+    build_sparse_table();
+
+//    print_sparse_table();
+
+
+
+    while(q--)
+    {
+        ll l, r; cin >> l >> r;
+        l--; r--;
+
+        cout << query1(l, r) << endl;
+        cout << query2(l, r) << endl;
+    }
+
+
+
+
+    return;
+}
+
+
+pre_compute();
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                         Sparse Table                      */
+// static range queries
+// build Sparse table in O(n * logn), memory is O(Bits * N)
+// get element/range in O(Bits) or O(1)
+
+
+// .....
+
+const ll N = (ll)2e5 + 5, Bits = 30;
+ll T[N][Bits], LOG[N];
+
+// pre-processing in O(N) for LOG to get queries in O(1)
+void pre_compute()
+{
+    LOG[1] = 0;
+    for(ll i = 2; i < N; i++)
+        LOG[i] = LOG[i/2] + 1;
+}
+
+// .....
+
+ll merge(ll x, ll y)
+{
+    return max(x, y);
+}
+
+
+// build Sparse Table in O(n*logn)
+void build_sparse_table(vector < ll > &a)
+{
+    ll n = (ll)a.size();
+    // 1
+    for(ll i = 0; i < n; i++)
+        T[i][0] = a[i];
+
+    // 2, 4, 8, ...
+    for(ll p = 1; (1ll << p) <= n; p++)
+    {
+        for(ll i = 0; i + (1ll << p) <= n; i++)
+        {
+            T[i][p] = merge(T[i][p - 1], T[i + (1ll << (p - 1))][p - 1]);
+        }
+    }
+}
+
+// .....
+
+// get query in O(Bits)
+ll query1(ll l, ll r) // 0-indexed, [l, r]
+{
+    ll sz = (r - l + 1);
+
+    ll ret = 0; // neutral
+    for(ll i = Bits - 1; i >= 0; i--)
+    {
+        if((sz >> i) & 1ll)
+        {
+            ret = merge(ret, T[l][i]);
+            l += (1ll << i);
+        }
+    }
+
+    return ret;
+}
+
+// .....
+
+// get query in O(1)
+// used only when taking duplicates elements in the range query doesn't affect the ret (min, max, gcd, lcm, ...)!
+ll query2(ll l, ll r) // 0-indexed, [l, r]
+{
+    ll sz = (r - l + 1);
+
+//    ll lg = __lg(sz);
+    ll lg = LOG[sz];
+
+    return merge(T[l][lg], T[r - (1ll << lg) + 1][lg]);
+}
+
+// .....
+
+// Print Sparse Table
+void print_sparse_table(ll n)
+{
+    cout << "Sparse Table: " << endl;
+    for(ll i = 0; i < n; i++)
+    {
+        for(ll j = 0; j < Bits; j++)
+        {
+            cout << T[i][j] << ' ';
+        }
+        cout << endl;
+    }
+}
+
+// .....
+
+pre_compute();
+
+// .....

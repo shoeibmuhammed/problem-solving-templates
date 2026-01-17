@@ -1,0 +1,661 @@
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                      (1) Mo's algorithm                                      */
+// Static Offline range queries in O(n * SQ)
+// Time Complexity: O((SQ*q + (n/SQ)*n) * F)
+//                  O((n + q) * SQ * F), where O(F) is the complexity of add/remove
+//
+// if TLE use different SQ: (ll)sqrtl(N/log(N)) + 1, n/sqrtl(q) + 1, ...
+//
+// Tricks: 1) use compression, inline  (https://cses.fi/problemset/task/1734).
+//         2) use getrand (Randomization)  (https://codeforces.com/contest/840/problem/D).
+//         3) use Euler Tour, freq, freqfreq idea  (https://codeforces.com/contest/375/problem/D).
+//         4) prefix trick: (in add calc res, then modify, bcos when k=0 u can take only one element which is wrong, and in remove vice-versa),
+//                          (take the array a 1-indexed, but MO will be 0-indexed bcos we need a[0]=0, and query on [l-1, r])
+//            + HT or compression trick (down, middle, up)  (https://codeforces.com/contest/877/problem/F).
+//         5) Mo sort get the min sum of Manhattan distance between adjacent pairs  (https://codeforces.com/contest/577/problem/E).
+//         6) HT is faster than multiset  (https://codeforces.com/contest/351/problem/D)  there are solutions without log, see it.
+//         7)
+//
+
+
+
+// problem statement:
+// given an array a(n),
+// given queries: get the number of distinct elements in the range [l, r].
+// https://cses.fi/problemset/task/1734/
+
+
+
+// Variables
+ll n, q;
+const ll N = (ll)2e6 + 6, M = (ll)2e6 + 6;
+const ll SQ = (ll)sqrtl(N) + 1ll;
+ll a[N];
+ll freq[N], res = 0;
+ll ans[M];
+
+
+
+struct Query
+{
+    ll l, r, queryIdx, blockIdx;
+
+    Query() { }
+
+    Query(ll _l, ll _r, ll _queryIdx)
+    {
+        l = _l;
+        r = _r;
+        queryIdx = _queryIdx;
+        blockIdx = (ll)_l/SQ;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        if(blockIdx != other.blockIdx) return blockIdx < other.blockIdx;
+
+        // return r < other.r; // Normal sorting
+        return (blockIdx % 2 == 0 ? r < other.r : r > other.r); // ZigZag sorting (little optimization in time!)
+    }
+};
+vector < Query > queries;
+
+inline void add(ll idx)
+{
+    if(!freq[a[idx]]) res++;
+    freq[a[idx]]++;
+}
+
+inline void remove(ll idx)
+{
+    freq[a[idx]]--;
+    if(!freq[a[idx]]) res--;
+}
+
+void MO()
+{
+    sort(all(queries));
+
+    ll l = 0, r = -1; // 0-indexed, if 1-indexed --> (l = 1, r = 0)
+    for(ll i = 0; i < q; i++)
+    {
+
+        while(l > queries[i].l) add(--l);
+        while(r < queries[i].r) add(++r);
+        while(l < queries[i].l) remove(l++);
+        while(r > queries[i].r) remove(r--);
+
+        // u can do operations here!
+        ans[queries[i].queryIdx] = res;
+    }
+
+    // reset (save time, instead clearing data)
+    ll x = 0, y = -1;
+    while(l > x) add(--l);
+    while(r < y) add(++r);
+    while(l < x) remove(l++);
+    while(r > y) remove(r--);
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+}
+
+
+void solve()
+{
+
+    cin >> n >> q;
+    clear();
+    for(ll i = 0; i < n; i++)
+        cin >> a[i], a[i] = get(a[i]);
+
+    queries.assign(q, Query());
+    for(ll i = 0; i < q; i++)
+    {
+        ll l, r; cin >> l >> r;
+        l--; r--; // 0-indexed, [l, r]
+
+        queries[i] = Query(l, r, i);
+    }
+
+    MO();
+
+    for(ll i = 0; i < q; i++)
+        cout << ans[i] << endl;
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         (2) Mo's with Update / 3D Mo (Offline)                    */
+// Dynamic Offline range queries in O(q * n^(2/3)) = O(n^(5/3))
+// u can update node only not a range
+// SQ = n^(2/3), (2 * n^(2))^(1/3), ...
+//
+
+
+
+// problem statement:
+// given an array a(n),
+// given queries: update a[i], get the number of distinct elements in [l, r]
+
+
+
+// variables
+const ll N = (ll)2e5 + 5, M = (ll)2e5 + 5;
+const ll SQ = 4300; // sometimes smaller values are better
+ll n, q, a[N];
+ll freq[2*N], res = 0;
+ll ans[M];
+
+
+
+struct Update
+{
+    ll pos, prevVal, newVal;
+    Update() { }
+    Update(ll _pos, ll _prevVal, ll _newVal) : pos(_pos), prevVal(_prevVal), newVal(_newVal) { }
+};
+vector < Update > updates;
+
+struct Query
+{
+    ll l, r, t, queryIdx, blockL, blockR;
+
+    Query() { }
+
+    Query(ll _l, ll _r, ll _t, ll _queryIdx)
+    {
+        l = _l;
+        r = _r;
+        t = _t;
+        queryIdx = _queryIdx;
+        blockL = (ll)_l/SQ;
+        blockR = (ll)_r/SQ;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        if(blockL != other.blockL) return blockL < other.blockL;
+        if(blockR != other.blockR) return blockR < other.blockR;
+        return t < other.t;
+    }
+};
+vector < Query > queries;
+
+inline void add(ll idx)
+{
+    if(!freq[a[idx]]) res++;
+    if(freq[a[idx]] == 1) res--;
+    freq[a[idx]]++;
+}
+
+inline void remove(ll idx)
+{
+    freq[a[idx]]--;
+    if(!freq[a[idx]]) res--;
+    if(freq[a[idx]] == 1) res++;
+}
+
+inline void update(ll pos, ll val, ll l, ll r)
+{
+    if(l <= pos && pos <= r)
+    {
+        remove(pos);
+        a[pos] = val;
+        add(pos);
+    }
+    else
+    {
+        a[pos] = val;
+    }
+}
+
+void MOwithUpdate(ll x)
+{
+    sort(all(queries));
+
+    ll l = 0, r = -1, t = x;
+    for(const auto &i : queries)
+    {
+        while(t < i.t) update(updates[t].pos, updates[t].newVal, l, r), t++;
+        while(t > i.t) t--, update(updates[t].pos, updates[t].prevVal, l, r);
+
+        while(l > i.l) add(--l);
+        while(r < i.r) add(++r);
+        while(l < i.l) remove(l++);
+        while(r > i.r) remove(r--);
+
+        ans[i.queryIdx] = res;
+    }
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+    res = 0;
+    for(ll i = 0; i <= n; i++)
+        freq[i] = 0;
+}
+
+void solve()
+{
+
+    cin >> n >> q;
+    clear();
+    for(ll i = 0; i < n; i++)
+        cin >> a[i], a[i] = get(a[i]);
+
+    queries.clear();
+    updates.clear();
+    for(ll i = 0; i < q; i++)
+    {
+        ll op; cin >> op;
+
+        if(op == 1)
+        {
+            ll l, r; cin >> l >> r; l--; r--;
+            queries.emplace_back(l, r, (ll)updates.size(), (ll)queries.size());
+        }
+        else
+        {
+            ll idx, val; cin >> idx >> val; idx--;
+            val = get(val);
+            updates.emplace_back(idx, a[idx], val);
+            a[idx] = val;
+        }
+    }
+
+    MOwithUpdate((ll)updates.size());
+
+    for(ll i = 0; i < (ll)queries.size(); i++)
+        cout << ans[i] << endl;
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                                (3) 4D MO                                                */
+// Static Offline range queries in O(q * n^(3/4)) = O(n^(7/4))
+// SQ = n^(3/4), but if TLE try different values
+//
+
+
+
+// problem statement:
+// given an array a(n)
+// given queries: count pairs (i, j), where l1<=i<=r1, l2<=j<=r2, a[i]=a[j]
+// https://codeforces.com/gym/101138/problem/D
+
+
+
+// variables
+const ll N = (ll)5e4 + 4, M = (ll)5e4 + 4;
+const ll SQ = 3345; // sometimes smaller values are better
+ll n, q;
+ll a[N];
+ll freq1[N], freq2[N], res = 0;
+ll ans[M];
+
+
+struct Query
+{
+    ll l1, r1, l2, r2, queryIdx;
+
+    Query() { }
+
+    Query(ll _l1, ll _r1, ll _l2, ll _r2, ll _queryIdx)
+    {
+        l1 = _l1;
+        r1 = _r1;
+        l2 = _l2;
+        r2 = _r2;
+        queryIdx = _queryIdx;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        array < ll, 7 > a({l1/SQ, r1/SQ, l2/SQ, r2, l1, r1, l2});
+        array < ll, 7 > b({other.l1/SQ, other.r1/SQ, other.l2/SQ, other.r2, other.l1, other.r1, other.l2});
+        return a < b;
+    }
+};
+vector < Query > queries;
+
+inline void add1(ll idx)
+{
+    freq1[a[idx]]++;
+    res += freq2[a[idx]];
+}
+inline void remove1(ll idx)
+{
+    res -= freq2[a[idx]];
+    freq1[a[idx]]--;
+}
+
+inline void add2(ll idx)
+{
+    freq2[a[idx]]++;
+    res += freq1[a[idx]];
+}
+inline void remove2(ll idx)
+{
+    res -= freq1[a[idx]];
+    freq2[a[idx]]--;
+}
+
+void MO_4D()
+{
+    sort(all(queries));
+
+    ll l1 = 0, r1 = -1, l2 = 0, r2 = -1;
+    for(ll i = 0; i < q; i++)
+    {
+        while(l1 > queries[i].l1) add1(--l1);
+        while(r1 < queries[i].r1) add1(++r1);
+        while(l1 < queries[i].l1) remove1(l1++);
+        while(r1 > queries[i].r1) remove1(r1--);
+
+        while(l2 > queries[i].l2) add2(--l2);
+        while(r2 < queries[i].r2) add2(++r2);
+        while(l2 < queries[i].l2) remove2(l2++);
+        while(r2 > queries[i].r2) remove2(r2--);
+
+        ans[queries[i].queryIdx] = res;
+    }
+
+    // reset (save time, instead clearing data)
+    ll x1 = 0, y1 = -1, x2 = 0, y2 = -1;
+    while(l1 > x1) add1(--l1);
+    while(r1 < y1) add1(++r1);
+    while(l1 < x1) remove1(l1++);
+    while(r1 > y1) remove1(r1--);
+
+    while(l2 > x2) add2(--l2);
+    while(r2 < y2) add2(++r2);
+    while(l2 < x2) remove2(l2++);
+    while(r2 > y2) remove2(r2--);
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+}
+
+void solve()
+{
+
+    cin >> n;
+    // clear();
+    for(ll i = 0; i < n; i++)
+        cin >> a[i];
+
+    cin >> q;
+    queries.assign(q, Query());
+    for(ll i = 0; i < q; i++)
+    {
+        ll l1, r1, l2, r2; cin >> l1 >> r1 >> l2 >> r2;
+        l1--; r1--; l2--; r2--;
+
+        queries[i] = Query(l1, r1, l2, r2, i);
+    }
+
+    MO_4D();
+
+    for(ll i = 0; i < q; i++)
+        cout << ans[i] << endl;
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                                (4) 4D MO on Subtree                                                */
+// Static Offline range queries in O(q * n^(3/4)) = O(n^(7/4))
+// SQ = n^(3/4), but if TLE try different values
+// if u need more time optimize, push in euler array a the values of w[u] it self, not the root,
+// it reduces the half numbers of accessing memory of the arrays (i write the bad one because it's more redable).
+//
+
+
+
+// problem statement:
+// given a rooted tree at root 1, each node has a weight,
+// given queries: get the minimum weight that occurs the most in the two subtree combined of u and v.
+// https://codeforces.com/problemset/problem/1767/F
+
+
+
+// variables
+const ll N = (ll)2e5 + 5, M = (ll)2e5 + 5;
+const ll SQ = 4500; // sometimes smaller values are better
+ll n, q, w[N];
+vector < ll > graph[N];
+ll in[N], out[N], a[N], timer = 0;
+ll freq[N], res = 0;
+ll ans[M];
+
+
+
+void dfs(ll root = 1, ll p = -1)
+{
+    in[root] = timer;
+    a[timer] = root;
+    timer++;
+
+    for(const auto &i : graph[root])
+    {
+        if(i == p) continue;
+        dfs(i, root);
+    }
+
+    out[root] = timer - 1;
+
+    return;
+}
+
+struct Query
+{
+    ll l1, r1, l2, r2, queryIdx;
+
+    Query() { }
+
+    Query(ll _l1, ll _r1, ll _l2, ll _r2, ll _queryIdx)
+    {
+        l1 = _l1;
+        r1 = _r1;
+        l2 = _l2;
+        r2 = _r2;
+        queryIdx = _queryIdx;
+    }
+
+    bool operator < (const Query &other) const
+    {
+        array < ll, 7 > a({l1/SQ, r1/SQ, l2/SQ, r2, l1, r1, l2});
+        array < ll, 7 > b({other.l1/SQ, other.r1/SQ, other.l2/SQ, other.r2, other.l1, other.r1, other.l2});
+        return a < b;
+    }
+};
+vector < Query > queries;
+
+const ll SQ2 = (ll)sqrtl(N) + 1ll;
+ll blockMX[SQ2], blockCnt[SQ2][N];
+ll query()
+{
+    ll mx = 0;
+    for(ll i = 0; i < SQ2; i++) mx = max(mx, blockMX[i]);
+
+    for(ll i = 0; i < SQ2; i++)
+    {
+        if(blockMX[i] != mx) continue;
+
+        for(ll j = 0; j < SQ2; j++)
+        {
+            ll val = i*SQ2 + j;
+            if(freq[val] == mx)
+            {
+                return val;
+            }
+        }
+    }
+
+    return 0;
+}
+
+inline void add(ll idx)
+{
+    ll u = a[idx];
+
+    blockCnt[w[u]/SQ2][freq[w[u]]]--;
+    freq[w[u]]++;
+    blockCnt[w[u]/SQ2][freq[w[u]]]++;
+
+    blockMX[w[u]/SQ2] = max(blockMX[w[u]/SQ2], freq[w[u]]);
+}
+
+inline void remove(ll idx)
+{
+    ll u = a[idx];
+
+    if(blockMX[w[u]/SQ2] == freq[w[u]] && blockCnt[w[u]/SQ2][freq[w[u]]] == 1) blockMX[w[u]/SQ2]--;
+
+    blockCnt[w[u]/SQ2][freq[w[u]]]--;
+    freq[w[u]]--;
+    blockCnt[w[u]/SQ2][freq[w[u]]]++;
+}
+
+void MO_4DonSubtree()
+{
+    sort(all(queries));
+
+    ll l1 = 1, r1 = 0, l2 = 1, r2 = 0;
+    for(ll i = 0; i < q; i++)
+    {
+        while(l1 > queries[i].l1) add(--l1);
+        while(r1 < queries[i].r1) add(++r1);
+        while(l1 < queries[i].l1) remove(l1++);
+        while(r1 > queries[i].r1) remove(r1--);
+
+        while(l2 > queries[i].l2) add(--l2);
+        while(r2 < queries[i].r2) add(++r2);
+        while(l2 < queries[i].l2) remove(l2++);
+        while(r2 > queries[i].r2) remove(r2--);
+
+        res = query();
+        ans[queries[i].queryIdx] = res;
+    }
+}
+
+// compress (not sorted)
+ll curr = 0;
+map < ll, ll > mp;
+ll get(ll x)
+{
+    if(mp.find(x) != mp.end()) return mp[x];
+    else return mp[x] = curr++;
+}
+
+// clear
+void clear()
+{
+    curr = 0;
+    mp.clear();
+    timer = 0;
+    for(ll i = 0; i <= n; i++)
+        graph[i].clear();
+}
+
+void solve()
+{
+
+    cin >> n;
+    // clear();
+    for(ll i = 1; i <= n; i++)
+        cin >> w[i];
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+    dfs();
+
+    cin >> q;
+    queries.assign(q, Query());
+    for(ll i = 0; i < q; i++)
+    {
+        ll u, v; cin >> u >> v;
+        queries[i] = Query(in[u], out[u], in[v], out[v], i);
+    }
+
+    MO_4DonSubtree();
+
+    for(ll i = 0; i < q; i++)
+        cout << ans[i] << endl;
+
+
+
+    return;
+}
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

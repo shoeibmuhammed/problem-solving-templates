@@ -1,0 +1,95 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      DP Bitmask                                      */
+// Divide n rabbits into some number of groups, earns a[i][j] points if Rabbit i and j belong to the same group, calulate the maximum points
+// (https://atcoder.jp/contests/dp/tasks/dp_u?lang=en).
+
+
+ll n;
+vector < vector < ll > > a;
+
+vector < ll > cost;
+
+ll dp[(1ll << 16)];
+ll slv(ll mask)
+{
+    if(!ones(mask)) return 0;
+
+    ll &ret = dp[mask];
+    if(ret != -1) return ret;
+    ret = -oo;
+
+    // take all
+    ret = max(ret, cost[mask] + slv(0ll));
+
+    // take subset
+    ll submask = mask;
+    submask = (submask - 1) & mask;
+    while(submask)
+    {
+        ret = max(ret, cost[submask ^ mask] + slv(submask));
+        submask = (submask - 1) & mask;
+    }
+
+
+    return ret;
+}
+
+void solve()
+{
+
+    cin >> n;
+    a.resize(n, vector < ll > (n));
+    for(auto &i : a) for(auto &j : i) cin >> j;
+
+
+    cost.assign(1ll << n, 0);
+    for(ll mask = 0; mask < (1ll << n); mask++)
+    {
+        for(ll i = 0; i < n; i++)
+        {
+            for(ll j = i + 1; j < n; j++)
+            {
+                if(((mask >> i) & 1ll) && ((mask >> j) & 1ll))
+                {
+                    cost[mask] += a[i][j];
+                }
+            }
+        }
+    }
+
+    mem(dp, -1);
+    cout << slv((1ll << n) - 1ll) << endl;
+
+
+    return;
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Trick: Create a mask of base b
+ll b = 3
+
+ll get_bit(ll num, ll bit)
+{
+    ll x = num;
+    for(ll i = 0; i < bit; i++) x /= b;
+
+    return (x % b);
+}
+
+ll set_bit(ll num, ll bit)
+{
+    if(get_bit(num, bit) == b - 1) return digit;
+
+    ll x = 1;
+    for(ll i = 0; i < bit; i++) x *= b;
+    return (num + x);
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

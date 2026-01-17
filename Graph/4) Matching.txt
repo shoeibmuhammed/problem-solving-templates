@@ -1,0 +1,268 @@
+
+
+// computes the maximum matching in a bipartite unweighted graph in O(sqrtl(n) * m)
+struct HopcroftKarp
+{
+    static const int inf = 1'000'000'000;
+
+    // 1-indexed
+    int n;
+    vector < int > l, r, d;
+    vector < vector < int > > graph;
+
+    HopcroftKarp(int _n, int _m) // left nodes [1, n], right nodes [1, m]
+    {
+        n = _n;
+        int p = _n + _m + 1;
+        l.assign(p, 0);
+        r.assign(p, 0);
+        d.assign(p, 0);
+        graph.assign(p, {});
+    }
+
+    void add_edge(int u, int v) // u is left, v is right
+    {
+        // edit : right id is increased by n, so is l[u]
+        graph[u].push_back(v + n);
+    }
+
+    bool bfs()
+    {
+        queue < int > q;
+        for(int u = 1; u <= n; u++)
+        {
+            if(!l[u]) d[u] = 0, q.push(u);
+            else d[u] = inf;
+        }
+
+        d[0] = inf;
+
+        while(!q.empty())
+        {
+            int u = q.front();
+            q.pop();
+            for(int v : graph[u])
+            {
+                if(d[r[v]] == inf)
+                {
+                    d[r[v]] = d[u] + 1;
+                    q.push(r[v]);
+                }
+            }
+        }
+        return d[0] != inf;
+    }
+
+    bool dfs(int u)
+    {
+        if(!u) return true;
+
+        for (int v : graph[u])
+        {
+            if (d[r[v]] == d[u] + 1 && dfs(r[v]))
+            {
+                l[u] = v, r[v] = u;
+                return true;
+            }
+        }
+        d[u] = inf;
+        return false;
+    }
+
+    int maximum_matching()
+    {
+        int ans = 0;
+        while(bfs()) for(int u = 1; u <= n; u++) if(!l[u] && dfs(u)) ans++;
+        return ans;
+    }
+
+    vector < pair < int, int > > get_matching_edges()
+    {
+        vector < pair < int, int > > res;
+        for(int u = 1; u <= n; u++) if(l[u]) res.emplace_back(u, l[u] - n);
+        return res;
+    }
+};
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Finds the minimum cost with maximum matching in O(n^3) but optimized
+// for finding maximum cost with maximum matching  -cost, return -matching()
+// 1-indexed
+
+const int N = 509;
+
+struct Hungarian
+{
+    const ll inf = 1e18;
+    vector < vector < ll > > c;
+    vector < ll > fx, fy, d;
+    vector < int > l, r, arg, trace;
+    // ll c[N][N], fx[N], fy[N], d[N];
+    // int l[N], r[N], arg[N], trace[N];
+    queue < int > q;
+    int start, finish, n;
+
+    Hungarian() { }
+    Hungarian(int n1, int n2): n(max(n1, n2))
+    {
+        c.assign(n + 1, vector < ll >(n + 1, inf)); // make it 0 for maximum cost matching (not necessarily with max count of matching)
+        fx.assign(n + 1, 0);
+        fy.assign(n + 1, 0);
+        d.assign(n + 1, 0);
+        l.assign(n + 1, 0);
+        r.assign(n + 1, 0);
+        arg.assign(n + 1, 0);
+        trace.assign(n + 1, 0);
+    }
+
+    void add_edge(int u, int v, ll cost) { c[u][v] = min(c[u][v], cost); }
+
+    inline ll getC(int u, int v) { return c[u][v] - fx[u] - fy[v]; }
+
+    void initBFS()
+    {
+        while(!q.empty()) q.pop();
+        q.push(start);
+        for(int i = 0; i <= n; i++) trace[i] = 0;
+        for(int v = 1; v <= n; v++)
+        {
+            d[v] = getC(start, v);
+            arg[v] = start;
+        }
+        finish = 0;
+    }
+
+    void findAugPath()
+    {
+        while(!q.empty())
+        {
+            int u = q.front(); q.pop();
+            for(int v = 1; v <= n; v++)
+            {
+                if(trace[v]) continue;
+
+                ll w = getC(u, v);
+                if(!w)
+                {
+                    trace[v] = u;
+                    if (!r[v])
+                    {
+                        finish = v;
+                        return;
+                    }
+                    q.push(r[v]);
+                }
+                if (d[v] > w)
+                {
+                    d[v] = w;
+                    arg[v] = u;
+                }
+            }
+        }
+    }
+
+    void subX_addY()
+    {
+        ll delta = inf;
+        for(int v = 1; v <= n; v++) if (!trace[v]&& d[v] < delta) delta = d[v];
+
+        // Rotate
+        fx[start] += delta;
+        for (int v = 1; v <= n; ++v)
+        {
+            if(trace[v])
+            {
+                int u = r[v];
+                fy[v] -= delta;
+                fx[u] += delta;
+            }
+            else
+            {
+                d[v] -= delta;
+            }
+        }
+
+        for(int v = 1; v <= n; v++)
+        {
+            if(!trace[v] && !d[v])
+            {
+                trace[v] = arg[v];
+                if (!r[v]) {
+                    finish = v;
+                    return;
+                }
+                q.push(r[v]);
+            }
+        }
+    }
+
+    void Enlarge()
+    {
+        do
+        {
+            int u = trace[finish];
+            int nxt = l[u];
+            l[u] = finish;
+            r[finish] = u;
+            finish = nxt;
+        } while (finish);
+    }
+
+
+    ll maximum_matching()
+    {
+        for(int u = 1; u <= n; u++)
+        {
+            fx[u] = c[u][1];
+            for(int v = 1; v <= n; v++) fx[u] = min(fx[u], c[u][v]);
+        }
+
+        for(int v = 1; v <= n; v++)
+        {
+            fy[v] = c[1][v] - fx[1];
+            for(int u = 1; u <= n; u++) fy[v] = min(fy[v], c[u][v] - fx[u]);
+        }
+
+        for(int u = 1; u <= n; u++)
+        {
+            start = u;
+            initBFS();
+            while(!finish)
+            {
+                findAugPath();
+                if(!finish) subX_addY();
+            }
+            Enlarge();
+        }
+
+        ll ans = 0;
+        for(int i = 1; i <= n; i++)
+        {
+            if(c[i][l[i]] != inf) ans += c[i][l[i]];
+            else l[i] = 0;
+        }
+        return ans;
+    }
+
+    vector < array < ll, 3 > > get_edges()
+    {
+        vector < array < ll, 3 > > edges;
+        for(int u = 1; u <= n; ++u) if(l[u]) edges.push_back({u, l[u], c[u][l[u]]});
+        return edges;
+    }
+
+};
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+

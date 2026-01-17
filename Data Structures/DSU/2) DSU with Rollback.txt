@@ -1,0 +1,192 @@
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                         DSU with Rollbacks                         */
+// 1-indexed
+// time complexity is O(log2(n))
+//
+
+
+struct DSUrollback
+{
+    // variables
+    ll cnt;
+    stack < array < ll, 4 > > st;
+    vector < ll > parent, sz;
+
+    void init(ll n)
+    {
+        cnt = n;
+        parent.resize(n + 1); sz.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1;
+    }
+
+    ll find(ll u)
+    {
+        while(u != parent[u]) u = parent[u];
+        return u;
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+
+        st.push({-1, -1, -1, -1});
+        if(parent[u] == parent[v]) return 0;
+        st.pop();
+
+        if(sz[u] < sz[v]) swap(u, v);
+
+        st.push({u, sz[u], v, parent[v]});
+
+        parent[v] = u;
+        sz[u] += sz[v];
+        cnt--;
+
+        return 1;
+    }
+
+    void rollback()
+    {
+        auto it = st.top(); st.pop();
+
+        if(it[0] == -1 || it[0] == -2) return;
+
+        parent[it[2]] = it[3];
+        sz[it[0]] = it[1];
+        cnt++;
+    }
+
+    void checkpoint()
+    {
+        st.push({-2, -2, -2, -2});
+    }
+
+    // rollback till the checkpoint (checkpoint is deleted also!)
+    void undo()
+    {
+        while(!st.empty() && st.top()[0] != -2) rollback();
+        if(!st.empty()) st.pop();
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+};
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// DSU with Rollbacks + check Bipartite
+struct DSUrollback
+{
+    // variables
+    bool isAllBipartite;
+    ll cnt;
+    stack < array < ll, 7 > > st;
+    vector < ll > parent, sz, dist;
+    vector < bool > isCompBipartite;
+
+    void init(ll n)
+    {
+        cnt = n; isAllBipartite = 1;
+        parent.resize(n + 1); sz.resize(n + 1); dist.resize(n + 1); isCompBipartite.resize(n + 1);
+        for(ll i = 1; i <= n; i++) parent[i] = i, sz[i] = 1, dist[i] = 0, isCompBipartite[i] = 1;
+    }
+
+    ll find(ll u)
+    {
+        while(u != parent[u]) u = parent[u];
+        return u;
+    }
+
+    ll getDist(ll u)
+    {
+        ll d = 0;
+        while(u != parent[u])
+        {
+            d ^= dist[u];
+            u = parent[u];
+        }
+        return d;
+    }
+
+    bool merge(ll _u, ll _v)
+    {
+        ll u = find(_u), v = find(_v);
+        ll du = getDist(_u), dv = getDist(_v);
+
+        if(parent[u] == parent[v])
+        {
+            st.push({-1, -1, v, -1, -1, isCompBipartite[v], isAllBipartite});
+            if((du % 2 == dv % 2) && isCompBipartite[u] == 1)
+            {
+                isCompBipartite[u] = 0;
+                isCompBipartite[v] = 0;
+                isAllBipartite = 0;
+            }
+            return 0;
+        }
+
+        if(sz[u] < sz[v]) swap(u, v), swap(du, dv);
+
+        st.push({u, sz[u], v, parent[v], isCompBipartite[u], isCompBipartite[v], isAllBipartite});
+
+        cnt--;
+        parent[v] = u;
+        sz[u] += sz[v];
+        dist[v] = du ^ dv ^ 1;
+        if(!isCompBipartite[u] || !isCompBipartite[v])
+            isCompBipartite[u] = isCompBipartite[v] = 0;
+
+        return 1;
+    }
+
+    void rollback()
+    {
+        auto it = st.top(); st.pop();
+
+        if(it[0] == -1 || it[0] == -2)
+        {
+            isCompBipartite[it[2]] = (bool)it[5];
+            isAllBipartite = (bool)it[6];
+
+            return;
+        }
+
+        cnt++;
+        parent[it[2]] = it[3];
+        sz[it[0]] = it[1];
+
+        isCompBipartite[it[0]] = (bool)it[4];
+        isCompBipartite[it[2]] = (bool)it[5];
+        isAllBipartite = (bool)it[6];
+    }
+
+    void checkpoint()
+    {
+        st.push({-2, -2, -2, -2, -2, -2, -2});
+    }
+
+    // rollback till the checkpoint (checkpoint is deleted also!)
+    void undo()
+    {
+        while(!st.empty() && st.top()[0] != -2) rollback();
+        if(!st.empty()) st.pop();
+    }
+
+    bool isConnected(ll u, ll v) { return find(u) == find(v); }
+
+    bool isBipartite() { return isAllBipartite; }
+
+    bool isBipartite(ll u) { return isCompBipartite[find(u)]; }
+};
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

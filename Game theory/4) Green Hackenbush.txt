@@ -1,0 +1,179 @@
+
+
+
+/*                              Green Hackenbush on Trees and Graphs                              */
+// Impartial game
+// consider a two player game on a graph with a specified vertex (root).
+// in each turn, a player eliminates one edge.
+// then, if a subgraph that is disconnected from the root, it is removed.
+// if a player cannot select an edge (i.e., the graph is singleton), he will lose.
+// compute the Grundy number of the given graph.
+//
+// ex1: https://www.codechef.com/AMR16MOS/problems/AMR16J
+// ex2: https://vjudge.net/problem/UVA-12033 --> if(w > 1) xorSm ^= (hackenbush(i, root) ^ w&1);
+//
+
+
+//...................................................................................................................
+
+
+
+/*                              Green Hackenbush on Tree                              */
+// without cycles
+//
+// Colon Principle:
+// the grundy number of a rooted tree is the XOR of (Grundy of each child subtree + 1).
+// every single tree can be simplified into one Bamboo stalk.
+// when branches come together at a vertex, one may replace the branches by a non-branching stalk of length equal to their nim sum.
+// xorSm ^= (hackenbush(i, root) + w);, if a chain of w edges
+//  if(w > 1) xorSm ^= (hackenbush(i, root) ^ w&1);, if need w cuts to be cut
+//
+
+
+vector < vector < ll > > graph;
+ll hackenbush(ll root, ll par = -1)
+{
+    ll xorSm = 0;
+    for(const auto &i : graph[root])
+    {
+        if(i == par) continue;
+        xorSm ^= (hackenbush(i, root) + 1);
+    }
+    return xorSm;
+}
+
+
+void solve()
+{
+
+    ll n; cin >> n;
+    graph.assign(n + 1, vector < ll > ());
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+
+    if(hackenbush(1)) cout << "Alice" << endl; // first player
+    else cout << "Bob" << endl; // second player
+
+
+    return;
+}
+
+
+
+//...................................................................................................................
+
+
+
+/*                              Green Hackenbush on Graph                              */
+// with cycles
+// if TLE --> use int
+//
+// Fusion Principle:
+// all vertices from any cycle can be fused into one vertex without changing the original value of the game.
+// consider a pair of adjacent vertices u, v that has another path (i.e., they are in a cycle).
+// then, we can contract u and v without changing Grundy number.
+// we first decohmpose grap into two-edge connected components. then, by contracting each components by using Fusion Principle,
+// we obtain a tree (and many self loops) that has the same Grundy number to the original graph.
+// by using Colon Principle, we can compute the Grundy number.
+//
+
+
+
+ll n, timer;
+vector < ll > low, dis, ground;
+vector < vector < ll > > graph;
+
+ll hackenbush(ll u, ll pre = 0)
+{
+    dis[u] = low[u] = ++timer;
+    ll ans = 0;
+
+    for(const auto v : graph[u])
+    {
+        if(v == pre)
+        {
+            pre += 2*n;
+            continue;
+        }
+
+        if(dis[v] == 0)
+        {
+            ll res = hackenbush(v, u);
+            low[u] = min(low[u], low[v]);
+            if(low[v] > dis[u]) ans ^= (1 + res) ^ 1;   // bridge
+            else ans ^= res;    // non bridge
+        }
+        else
+        {
+            low[u] = min(low[u], dis[v]);
+        }
+    }
+
+    if(pre > n) pre -= 2*n;
+    for(const auto v : graph[u]) if(v != pre && dis[u] <= dis[v]) ans ^= 1;
+
+    return ans;
+}
+
+
+void solve()
+{
+
+    cin >> n;
+
+    timer = 0;
+    low.assign(n + 1, 0); dis.assign(n + 1, 0); ground.assign(n + 1, 0);
+    graph.assign(n + 1, vector < ll > ());
+
+    ll root = -1; // if there are multiple ground nodes set any ground node as a root
+    for(ll i = 1; i <= n; i++)
+    {
+        cin >> ground[i];
+        if(root == -1 && ground[i]) root = i;
+    }
+
+    // corner case
+    if(root == -1)
+    {
+        for(ll i = 1; i <= n - 1; i++) { ll u, v; cin >> u >> v; }
+        cout << 0 << endl; // second player
+        return;
+    }
+
+
+    ll grundy = 0;
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+
+        if(ground[u]) u = root;
+        if(ground[v]) v = root;
+
+        if(u == v)
+        {
+            grundy ^= 1;
+        }
+        else
+        {
+            graph[u].push_back(v);
+            graph[v].push_back(u);
+        }
+    }
+
+
+    grundy ^= hackenbush(root);
+
+    if(grundy) cout << 1 << endl; // first player
+    else cout << 0 << endl; // second player
+
+
+    return;
+}
+
+
+
+//...................................................................................................................

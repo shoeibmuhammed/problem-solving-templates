@@ -1,0 +1,125 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*              Suffix String Double Hashing (with struct)             */
+// pre-processing in O(N), querying (comparing different ranges) in O(1)
+// weights: (n - 1) ... 2 1 0
+// if TLE --> (without struct), or (Single Hashing)
+// adjust base (29, 31, 37, 41, 137, 277), mod (127657753, 987654319, 998244353, 1e9 + 7, 1e9 + 9)
+
+// ....................
+
+const ll N = (ll)2e6 + 6, base1 = 31, base2 = 41, mod1 = (ll)127657753, mod2 = (ll)987654319;
+const char _ref = 'a' - 1ll; // 'a', 'A', '0'
+
+// ....................
+
+// Modular(Binary) Exponentiation: Quick calculation of ((x^n) mod m) in O(log(n))
+ll mod_exp(ll x, ll n, ll m = mod)
+{
+    ll res = 1;
+    while(n)
+    {
+        if (n % 2) res = (((res % m) * (x % m)) % m);
+        x = (((x % m) * (x % m)) % m);
+        n /= 2;
+    }
+    return res;
+}
+
+// Modular Arithmetic operations
+ll mod_mul(ll x , ll y, ll m = mod) { return (((x % m) * (y % m)) % m); }
+ll mod_inv(ll x, ll m = mod){ return mod_exp(x , m - 2, m); } // Fermat’s little theorem (m is a prime number)
+ll mod_div(ll x, ll y, ll m = mod){ return mod_mul(x, mod_inv(y, m), m); }
+ll mod_add(ll x, ll y, ll m = mod) { ll z = (x % m) + (y % m); z %= m; return z; }
+ll mod_sub(ll x, ll y, ll m = mod) { ll z = (x % m) - (y % m); while(z < 0) z += m; z %= m; return z; }
+
+// ....................
+
+ll pw1[N], pw2[N];
+void pre_process()
+{
+    pw1[0] = pw2[0] = 1;
+    for(ll i = 1; i < N; i++)
+    {
+        pw1[i] = mod_mul(pw1[i - 1], base1, mod1);
+        pw2[i] = mod_mul(pw2[i - 1], base2, mod2);
+    }
+}
+
+struct _suff_hash
+{
+    ll n;
+    string s;
+    vector < pair < ll, ll > > _suff, _suff_rev;
+
+    _suff_hash(string _s)
+    {
+        s = _s;
+        n = (ll)s.size();
+        _generate_suff();
+    }
+
+    void _generate_suff()
+    {
+        _suff.resize(n); _suff_rev.resize(n);
+        for (ll i = 0; i < n; i++) // (n - 1) ... 2 1 0
+        {
+            ll digit1 = (ll)(s[i] - _ref);
+
+            _suff[i].first = (i ? mod_mul(_suff[i - 1].first, base1, mod1) : 0);
+            _suff[i].first = mod_add(_suff[i].first, digit1, mod1);
+
+            _suff[i].second = (i ? mod_mul(_suff[i - 1].second, base2, mod2) : 0);
+            _suff[i].second = mod_add(_suff[i].second, digit1, mod2);
+
+            // ...
+
+            ll digit2 = (ll)(s[n - 1 - i] - _ref);
+
+            _suff_rev[i].first = (i ? mod_mul(_suff_rev[i - 1].first, base1, mod1) : 0);
+            _suff_rev[i].first = mod_add(_suff_rev[i].first, digit2, mod1);
+
+            _suff_rev[i].second = (i ? mod_mul(_suff_rev[i - 1].second, base2, mod2) : 0);
+            _suff_rev[i].second = mod_add(_suff_rev[i].second, digit2, mod2);
+        }
+    }
+
+    pair < ll, ll > _get_range(ll l, ll r)
+    {
+        ll len = (r - l + 1);
+        pair < ll, ll > val = _suff[r];
+        if (l > 0)
+        {
+            val.first = mod_sub(val.first, mod_mul(_suff[l - 1].first, pw1[len], mod1), mod1);
+            val.second = mod_sub(val.second, mod_mul(_suff[l - 1].second, pw2[len], mod2), mod2);
+        }
+        return val;
+    }
+
+    pair < ll, ll > _get_range_rev(ll l, ll r)
+    {
+        ll len = (r - l + 1);
+        pair < ll, ll > val = _suff_rev[r];
+        if (l > 0)
+        {
+            val.first = mod_sub(val.first, mod_mul(_suff_rev[l - 1].first, pw1[len], mod1), mod1);
+            val.second = mod_sub(val.second, mod_mul(_suff_rev[l - 1].second, pw2[len], mod2), mod2);
+        }
+        return val;
+    }
+
+    bool is_pal(ll l, ll r)
+    {
+        return _get_range(l, r) == _get_range_rev(n - 1 - r, n - 1 - l);
+    }
+
+};
+
+// ....................
+
+pre_process();
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

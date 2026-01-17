@@ -1,0 +1,106 @@
+
+
+struct BIT
+{
+    ll n;
+    vector < ll > tree;
+
+    void init(ll _n)
+    {
+        n = _n, tree.assign(_n, 0);
+    }
+
+    void add(ll at, ll value) // a[at] += value
+    {
+        for(ll i = at + 1; i <= n; i += i & -i)
+        {
+            tree[i - 1] += value;
+        }
+    }
+
+    ll sum(ll exc) // [0, exc[
+    {
+        ll ans = 0;
+        for(ll i = exc; i > 0; i -= i & -i)
+        {
+            ans += tree[i - 1];
+        }
+        return ans;
+    }
+
+    ll sum(ll inc, ll exc) // [inc, exc[
+    {
+        return sum(exc) - sum(inc);
+    }
+};
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+struct BIT
+{
+    ll n;
+    vector < ll > tree;
+
+    void init(ll _n)
+    {
+        n = _n;
+        tree.assign(n, 0);
+    }
+
+    void add(ll at, ll value) // a[at] += value
+    {
+        for(ll i = at + 1; i <= n; i += i & -i)
+        {
+            tree[i - 1] += value;
+        }
+    }
+
+    ll sum(ll exc) // [0, exc[
+    {
+        ll ans = 0;
+        for(ll i = exc; i > 0; i -= i & -i)
+        {
+            ans += tree[i - 1];
+        }
+        return ans;
+    }
+
+    ll sum(ll inc, ll exc) // [inc, exc[
+    {
+        return sum(exc) - sum(inc);
+    }
+
+    ll getMx() // get max index that have value > 0
+    {
+        ll total = sum(n);
+
+        if (total == 0) return -1;
+
+        ll idx = 0;
+        ll bitmask = 1LL << (msb(n));
+
+        ll cur_sum = 0;
+
+        for (; bitmask > 0; bitmask >>= 1)
+        {
+            ll next = idx + bitmask;
+            if(next <= n && cur_sum + tree[next - 1] < total)
+            {
+                cur_sum += tree[next - 1];
+                idx = next;
+            }
+        }
+
+        return idx;
+    }
+};
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

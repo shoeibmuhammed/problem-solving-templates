@@ -1,0 +1,241 @@
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      Dynamic CHT                                      */
+// DP Range optimization from O(N^2) to O(N), or may be from O(N^3) to O(N^2).
+//
+// DP form  dp[i] = min(b[j] * a[i] + dp[j]), where i < j, or
+//            dp[i, j] = min(b[k] * a[i] + dp[i - 1, k]), where k < j.
+//
+// first loop is the right pointer of each subarray, not the left, to get the correct equation.
+// the answers is dp[n] and depends on previous dp's (think backward like machine problem!).
+// try to get cost in independet way just by knowing the borders in O(1) (what i mean not be cumulative).
+// if said subsequence not subarray  sorting is the greedy part  (https://codeforces.com/contest/1083/problem/E).
+//
+//
+// Keywoards:
+//           1) find min/max to reach n from 1 (if said from n to 1, then reverse everything in the problem).
+//           2) divide into k subarrays  non-monotonic (can't D&C)  (https://vjudge.net/solution/60591813).
+//           3)
+//
+// Tricks:
+//         1) aj*al + dpj*bl = bl*(aj*(al/bl) + dpj)  ret = (ll)roundl(b[l] * dcht.eval(x));  (https://codeforces.com/gym/568417/submission/319119641)
+//         2) y = cl + (mj*xl + cj);  ret = cl + dcht.eval(xl);  (https://vjudge.net/solution/60569672)
+//         3)
+//
+//
+// Problems: 1) https://codeforces.com/contest/91/problem/E (important!)
+//           2)
+//
+//
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Max Dynamic CHT
+// x & m can be inserted in any order.
+// insert_line in O(log(n)), eval in O(log(n)), eval2 in O(log(n)).
+// it's max, to make it min  pcht.add_line(-m, -c), -pcht.eval(x)
+// if weird WA, try the double template
+
+
+const ll is_query = -(1LL << 62);
+struct line
+{
+    ll m, b, idx;
+    mutable function < const line*() > succ;
+    bool operator < (const line& rhs) const
+    {
+        if(rhs.b != is_query) return m < rhs.m;
+        const line* s = succ();
+        if(!s) return 0;
+        ll x = rhs.m;
+        return b - s->b < (s->m - m) * x;
+    }
+};
+
+struct DynamicCHT : public multiset < line > // will maintain upper hull for maximum
+{
+    const ll inf = LLONG_MAX;
+    bool bad(iterator y)
+    {
+        auto z = next(y);
+        if (y == begin())
+        {
+            if (z == end()) return 0;
+            return y->m == z->m && y->b <= z->b;
+        }
+        auto x = prev(y);
+        if (z == end()) return y->m == x->m && y->b <= x->b;
+
+        return (__int128)(x->b - y->b) * (z->m - y->m) >= (__int128)(y->b - z->b) * (y->m - x->m); // more accurate (take care from OverFLow!)
+
+        /* compare two lines by slope, make sure denominator is not 0 */
+        ll v1 = (x->b - y->b);
+        if(y->m == x->m) v1 = x->b > y->b ? inf : -inf;
+        else v1 /= (y->m - x->m);
+        ll v2 = (y->b - z->b);
+        if(z->m == y->m) v2 = y->b > z->b ? inf : -inf;
+        else v2 /= (z->m - y->m);
+        return v1 >= v2;
+    }
+
+    void insert_line(ll m, ll b, ll idx = -1)
+    {
+        // m *= -1; b *= -1; // for minimum
+        auto y = insert({ m, b, idx });
+        y->succ = [=] { return next(y) == end() ? 0 : &*next(y); };
+        if(bad(y)) { erase(y); return; }
+        while(next(y) != end() && bad(next(y))) erase(next(y));
+        while(y != begin() && bad(prev(y))) erase(prev(y));
+    }
+
+    ll eval(ll x)
+    {
+        auto l = *lower_bound((line) { x, is_query });
+        // return -(l.m * x + l.b); // for minimum
+        return l.m * x + l.b; // for maximum
+    }
+
+    pair < ll, ll > eval2(ll x) // return {value, index of the line}
+    {
+        auto l = *lower_bound((line) { x, is_query });
+        // return {-(l.m * x + l.b), l.idx}; // for minimum
+        return {l.m * x + l.b, l.idx}; // for maximum
+    }
+};
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Max Double Dynamic CHT
+// x & m can be inserted in any order.
+// insert_line in O(log(n)), eval in O(log(n)).
+// it's max, to make it min --> pcht.add_line(-m, -c), -pcht.eval(x)
+
+
+struct Line
+{
+    mutable ld k, m, p;
+    bool operator<(const Line& o) const { return k < o.k; }
+    bool operator<(ld x) const { return p < x; }
+};
+
+struct DynamicCHT : multiset < Line, less < > >
+{
+    // // long long
+    // const long long inf = 2e18;
+    // long long div(long long a, long long b) { return a / b - ((a ^ b) < 0 && a % b); } // floored division
+
+    // doubles
+    const ld inf = 1/.0;
+    ld div(ld a, ld b) { return a / b; } // floored division
+
+    bool isect(iterator x, iterator y)
+    {
+        if(y == end()) { x->p = inf; return false; }
+        if(x->k == y->k) x->p = x->m > y->m ? inf : -inf;
+        else x->p = div(y->m - x->m, x->k - y->k);
+        return (x->p >= y->p);
+    }
+
+    void insert_line(ld k, ld m)
+    {
+        // k *= -1; m *= -1; // for minimum
+        auto z = insert({k, m, 0}), y = z++, x = y;
+        while(isect(y, z)) z = erase(z);
+        if(x != begin() && isect(--x, y)) isect(x, y = erase(y));
+        while((y = x) != begin() && (--x)->p >= y->p) isect(x, erase(y));
+    }
+
+    ld eval(ld x)
+    {
+        assert(!empty());
+        auto l = *lower_bound(x);
+        // return -(l.k * x + l.m); // for minimum
+        return l.k * x + l.m; // for maximum
+    }
+};
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Segment Tree on CHT
+
+const ll N = 1e5 + 5;
+DynamicCHT segmentTree[4 * N];
+
+void build(vector < pair < ll, ll > > &a, ll ni, ll lx, ll rx)
+{
+    for(ll i = lx; i <= rx; i++) segmentTree[ni].insert_line(a[i].first, a[i].second, i);
+
+    if(lx == rx) return;
+
+    ll mid = (lx + rx) / 2;
+    ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+    build(a, lf, lx, mid);
+    build(a, ri, mid + 1, rx);
+}
+
+pair < ll, ll > query(ll l, ll r, ll t, ll ni, ll lx, ll rx)
+{
+    if(l <= lx && r >= rx) return segmentTree[ni].eval2(t);
+
+    if(l > rx || r < lx) return {-1, -1};
+
+    ll mid = (lx + rx) / 2;
+    ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+    return max(query(l, r, t, lf, lx, mid), query(l, r, t, ri, mid + 1, rx));
+}
+
+
+// 0-indexed
+build(a, 0, 0, n - 1);
+cout << query(l, r, t, 0, 0, n - 1).first << ' ' << query(l, r, t, 0, 0, n - 1).second << endl; // l, r included
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// Segment Tree on CHT
+
+vector < DynamicCHT > segmentTree;
+
+void add_line(ll i, ll m, ll b, ll ni, ll lx, ll rx)
+{
+    segmentTree[ni].insert_line(-m, -b);
+
+    if(lx == rx) return;
+
+    ll mid = (lx + rx) / 2;
+    ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+    if(i <= mid) add_line(i, m, b, lf, lx, mid);
+    else add_line(i, m, b, ri, mid + 1, rx);
+}
+void add_line(ll i, ll m, ll b) { add_line(i, m, b, 0, 1, n); }
+
+ll query(ll l, ll r, ll x, ll ni, ll lx, ll rx)
+{
+    if(l > rx || r < lx) return oo;
+
+    if(l <= lx && r >= rx)
+    {
+        if(segmentTree[ni].empty()) return oo;
+        return -segmentTree[ni].eval(x);
+    }
+
+    ll mid = (lx + rx) / 2;
+    ll lf = 2*ni + 1, ri = 2*ni + 2;
+
+    return min(query(l, r, x, lf, lx, mid), query(l, r, x, ri, mid + 1, rx));
+}
+ll query(ll l, ll r, ll x) { return query(l, r, x, 0, 1, n); }
+
+segTree.resize(4*n + 4);
+for(auto &i :segTree) i.clear();
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

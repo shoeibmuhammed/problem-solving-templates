@@ -1,0 +1,136 @@
+//.................................................................................................................................................................................
+
+/*                                          Notes                                          */
+
+// take care from OVERFLOW (multiplaction of long long)  take input as ll, then convert it to ld
+// when dealing with ll, take care from getting ride of any ld
+// use clamp in acos, asin, atan to prevent NaN
+// take care when taking the inverse sin/cos/tan, for example sin(θ) = sin(180 - θ), the asinl() will return θ not 180 - θ
+// don't use ceil
+// avoid division --> use multiplication
+//
+
+
+//.................................................................................................................................................................................
+
+/*                                         Tricks                                          */
+
+// (1) binary search on the needed value
+// (2) ternary search
+// (3) if given angles, no sides --> assume one side and use it to get other angles
+// (4)
+
+//.................................................................................................................................................................................
+
+/*                                          Basics                                          */
+
+// z = a + b*i
+// cld pt = {a, b}
+// θ (radian) [−π, π] = arg(pt) = atan2l(b, a)   phase angle (argument) of a complex number (smallest angle it makes with the positive real axis (+ve if clock-wise, else -ve))
+// take care that θ can be negative
+//
+// atan2f (float), atan2 (double), atan2l (long double) --> use atan2l
+//
+// θ (degree) =  θ (radian) * 180 / pi
+//
+// sin θ = opposite / hypotenuse, cos θ = adjacent / hypotenuse, tan θ = opposite / adjacent, tan θ = sin θ / cos θ
+// Sin rule: a/sin(θa) = b/sin(θb) = c/sin(θc)
+// Cos rule: cos(θ) = (a*a + b*b - c*c) / (2 * a * b)
+//           c*c = a*a + b*b - 2*a*b*cos(θ)
+//
+// 1 degree = 60 minutes
+//
+// abs(pt)  return the magnitude (modulus) of the complex number (sqrtl(a*a + b*b))
+//
+// multiplying two complex numbers (vectors): the result magnitude is the product of the lengths, and the angle is the sum of their angles.
+// z₁ = r₁ ∠ θ₁, z₂ = r₂ ∠ θ₂ --> z₁ * z₂ = (r₁ * r₂) ∠ (θ₁ + θ₂)
+//
+
+//.................................................................................................................................................................................
+
+/*                                          Polygons                                          */
+
+// area of a triangle = 1/2 * a * b * sinθ
+// s = (a + b + c)/2, area = sqrtl(s * (s - a) * (s - b) * (s - c))
+//
+// If two triangles are similar (same shape, only scaled) --> A1 / A2 = (side1 / side2)^2
+//
+// area of the arc = 1/2 * r * r * θ
+// length of the arc = θ * r
+//
+// the radius of the largest circle in a right angle triangle is: r = a*b / (a + b + c)
+//
+// Radius of the inscribed circle within three tangent circles = (r1 * r2 * r3) / (r1*r2 + r1*r3 + r2*r3 + 2*sqrtl(r1 * r2 * r3 * (r1 + r2 + r3)))
+//
+// volume of sphere = (4/3) * π * r^(3)
+//
+// parallelogram: the sum of each two opposite points = the sum of the other points
+//
+// median of the triangle length: ma = 0.5 * sqrtl(2*b*b + 2*c*c - a*a), ...
+// to check the three medians can form a triangle (assume: ma < mb < mc) --> ma + mb > mc
+// area of the triange = (4/3) * sqrtl(s * (s - ma) * (s - mb) * (s - mc)), where s = (ma + mb + mc)/2
+//
+// if a plane cut a spehre, the the volume of the cutten part is: (π/3) * h^(2) * (3*r - h)
+// where r is the radius of the sphere, and h is the height of the cutten part
+//
+// A circumscribed circle is the circle that passes through all the vertices of a polygon
+//
+// In a regular n-gon, the central angle between two vertices separated by k sides is: θ (radian) = (2 * π * k) / n
+// radius of the biggest circle inside a regular n-gon is R = s / (2.0L * tanl(π / n))
+//
+// Area of a regular n-gon is: (n * s * s) / (4 * tan(π / n)), 0.5 * n * r * r * sin(2*π / n), where r is of the circumscribed circle
+//
+// Triangular pyramid volume with equal lengths is: V = l^3 / 6*sqrtl(2)
+// Square pyramid volume with equal lengths is: V = l^3 / 3*sqrtl(2)
+// Pentagonal pyramid volume with equal lengths is: V = l^3 / 3*sqrtl(2)
+//
+
+//.................................................................................................................................................................................
+
+/*                                          Template                                          */
+
+//........................................
+
+// Ternary search
+ld low = -1e12, high = 1e12, mid1, mid2, iter = 100;
+while(high - low > eps && iter--)
+{
+    mid1 = low + (high - low)/3.0L;
+    mid2 = high - (high - low)/3.0L;
+
+    if(eval(mid1) < eval(mid2)) high = mid2; // low = mid1 (if max)
+    else low = mid1; // high = mid2 (if max)
+}
+cout << eval(low) << endl; //return the min of eval(x) in [low, high]
+
+
+// integers
+while(high - low > 3)
+{
+    mid1 = low + (high - low)/3;
+    mid2 = high - (high - low)/3;
+
+    if(eval(mid1) < eval(mid2)) high = mid2 - 1;
+    else low = mid1 + 1;
+}
+ll res = (ll)1e18;
+for(ll i = low; i <= high; i++)
+    res = min(res, eval(low));
+
+//........................................
+
+// Ceil function
+ll my_ceil(ld num)
+{
+    if(fabsl(num - (ll)num) < 1e-6) return (ll)num;
+    return num > 1e-6 ? (ll)num + 1 : (ll)num;
+}
+
+//........................................
+
+
+
+//.................................................................................................................................................................................
+
+
+

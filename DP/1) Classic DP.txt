@@ -1,0 +1,143 @@
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      LIS (Longest Increasing Subsequence)                                    */
+// Get the longest increasing sequence (smallest lexicographical) from a given array.
+// Time Complexity is O(n * log(n)) using Binary Search, or O(n^2) using classical dp.
+
+
+vector < ll > get_lis(vector < ll > &a)
+{
+    ll n = (ll)a.size();
+
+    vector < ll > mn, insertedAt(n);
+    // mn[x] holds the smallest possible end element of a subsequence of length (x + 1)
+    for(ll i = 0; i < n; i++)
+    {
+        if(mn.empty() || mn.back() < a[i]) // put <= for equality
+        {
+            mn.push_back(a[i]);
+            insertedAt[i] = (ll)mn.size() - 1;
+        }
+        else
+        {
+            auto it = lower_bound(all(mn), a[i]);
+            *it = a[i];
+            insertedAt[i] = (it - mn.begin());
+        }
+    }
+
+    ll len = (ll)mn.size();
+    vector < ll > lis(len, 0);
+    ll curr = len - 1;
+
+    for(ll i = n - 1; i >= 0; i--)
+    {
+        if(insertedAt[i] == curr)
+        {
+            lis[curr] = a[i];
+            curr--;
+        }
+    }
+
+    return lis;
+}
+
+/*
+10
+1 5 7 10 9 6 7 9 2 3
+ */
+
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      MCM (Matrix Chain Multiplication)                                     */
+// Compute the minimum cost to multiply n matrices.
+// Formula: dp[i][j] = min(dp[i][k] + dp[k + 1][j] + p[i - 1]*p[k]*p[j]) where i <= k < j.
+// Time Complexity is O(n^3), Memory Complexity is O(n^2).
+
+// Iterative version
+ll MCM(vector < ll > &p)
+{
+    ll n = (ll)p.size();
+    vector < vector < ll > > dp(n, vector < ll > (n, 0));
+    for(ll len = 2; len < n; len++)
+    {
+        for(ll i = 1; i < n - len + 1; i++)
+        {
+            ll j = i + len - 1;
+            dp[i][j] = oo;
+            for(ll k = i; k < j; k++)
+            {
+                dp[i][j] = min(dp[i][j], dp[i][k] + dp[k + 1][j] + p[i - 1]*p[k]*p[j]);
+            }
+        }
+    }
+    return dp[1][n - 1]; // minimum cost to multiply matrices A1...An
+}
+
+//..........
+
+// Recursive version
+ll MCM(ll i, ll j, vector < ll > &p, vector < vector < ll > > &dp)
+{
+    if(i == j) return 0;
+
+    ll &ret = dp[i][j];
+    if(ret != -1) return ret;
+    ret = oo;
+
+    for(ll k = i; k < j; k++)
+        ret = min(ret, MCM(i, k, p, dp) + MCM(k + 1, j, p, dp) + p[i - 1]*p[k]*p[j]);
+
+
+    return ret;
+}
+
+
+void solve()
+{
+
+    ll n; cin >> n;
+    vector < ll > a(n);
+    for(auto &i : a) cin >> i;
+
+    vector < vector < ll > > dp(n, vector < ll > (n, -1));
+    cout << MCM(1, n - 1, a, dp) << endl;
+
+
+    return;
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                         Check palindromic substrings                         */
+// check if substring s[l:r] is palindrome in O(1) query, O(n^2) preprocessing.
+
+const ll N = (ll)1e3 + 3;
+ll dp[N][N];
+ll is_pal(ll l, ll r)
+{
+    if(l >= r) return 1;
+
+    ll &ret = dp[l][r];
+
+    if(ret != -1) return ret;
+
+    ret = ((s[l] == s[r]) && is_pal(l + 1, r - 1));
+
+    return ret;
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

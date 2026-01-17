@@ -1,0 +1,30 @@
+//.................................................................................................................................................................................
+
+
+
+// Explanation:
+// span(X) denotes the set of all possible xors of some elements of the set X.
+// we will maintain a sequence Xn (n ≥ 1) of XOR basises instead of a single basis.
+// Adding a integer v to set S:
+//    We will gradually iterate over our basises starting from the first. Let i be the integer of the current basis we are considering,
+//    If v ∈ span(Xi), we simply add v to Xi and finish the procedure,
+//    Otherwise, v ∈ span(Xi), so we can't add it to the basis, Therefore, we increment i by 1 and return to the previous step.
+//    In other words, we find such minimal i that v ∈ span(Xi) and add v to Xi.
+// span(Xi) ⊇ span(Xi + 1) for all i ≥ 1.
+// There are no more than m+1 unique span(Xi).
+// Using these two properties, we can improve the algorithm so that addition works in O(m^2) or even O(m * logm).
+// Recall that we find such minimal i that v ∈ span(Xi) and add v to Xi, and since there are no more than m+1 unique span(Xi),
+// we need only to iterate over those i, for which i = 1 or span(Xi) != span(Xi−1).
+// Then we achieve complexity O(m^2) (If we use binary search over these indices i, we achieve complexity O(m * logm)).
+// Deleting a integer v ∈ S:
+//    Choose j such that v ∈ Xj. If we simply delete v from Xj the properties we noted earlier will be violated,
+//    While span(Xj) = span(Xj+1), we swap the bases Xj and Xj+1, and increment j by 1,
+//    Since span(Xj) = span(Xj+1), it does not matter in what order these basises are located in the sequence, so we can rearrange them arbitrarily,
+//    Now span(Xj) != span(Xj+1). We have two cases:
+//    1- span(Xj ∖ {v}) ⊇ span(Xj+1). In this case, we can simply delete the integer v from Xj and finish the procedure,
+//    2- span(Xj ∖ {v}) ⊉ span(Xj+1). There exists y ∈ Xj+1 such that span((Xj ∖ {v}) ∪ {y}) = span(Xj).
+//       We find this y ∈ Xj+1,then we can replace v in X j with y.
+//
+
+
+//.................................................................................................................................................................................

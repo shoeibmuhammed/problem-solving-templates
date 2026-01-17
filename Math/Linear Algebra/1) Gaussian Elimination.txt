@@ -1,0 +1,60 @@
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                              Gaussian Elimination                              */
+// O(n * m * min(n, m))
+//
+
+
+
+pair < ll, vector < ld > > gaussianElimination(vector < vector < ld > > a)
+{
+    ll n = (ll)a.size(), m = (ll)a[0].size() - 1;
+    vector < ll > pos(m, -1);
+    ld det = 1;
+    ll rank = 0;
+    for(ll col = 0, row = 0; col < m && row < n; col++)
+    {
+        ll mx = row;
+        for(ll i = row; i < n; i++) if(fabsl(a[i][col]) > fabsl(a[mx][col])) mx = i;
+        if(fabsl(a[mx][col]) < eps)
+        {
+            det = 0;
+            continue;
+        }
+        for(ll i = col; i <= m; i++) swap(a[row][i], a[mx][i]);
+        if(row != mx) det = -det;
+        det *= a[row][col];
+        pos[col] = row;
+        for(ll i = 0; i < n; i++)
+        {
+            if(i != row && fabsl(a[i][col]) > eps)
+            {
+                ld c = a[i][col] / a[row][col];
+                for(ll j = col; j <= m; j++) a[i][j] -= a[row][j] * c;
+            }
+        }
+        row++; rank++;
+    }
+
+    vector < ld > ans(m, 0);
+    for(ll i = 0; i < m; i++)
+        if(pos[i] != -1) ans[i] = a[pos[i]][m] / a[pos[i]][i];
+
+    for(ll i = 0; i < n; i++)
+    {
+        ld sm = 0;
+        for(ll j = 0; j < m; j++) sm += ans[j] * a[i][j];
+        if(fabsl(sm - a[i][m]) > eps) return {-1, ans}; // no solution
+    }
+    for(ll i = 0; i < m; i++) if(pos[i] == -1) return {2, ans}; // infinite solutions
+
+    return {1, ans}; // unique solution
+}
+
+
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

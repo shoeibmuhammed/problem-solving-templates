@@ -1,0 +1,39 @@
+//.................................................................................................................................................................................
+
+
+
+/*                              Transformations                              */
+//
+//
+
+
+
+// translate (shift) a point p by a vector v
+cT translate(cT p , cT v) { return p + v; }
+
+// scale a point p by a certain ratio factor around point c
+cld scale(cld p, cld c, cld factor) { return c + (p - c)*factor; }
+
+// rotate (anti-clockwise) a point p around point c by an angle
+cld rotate(cld p, cld c, ld angle) // angle in radian
+{
+    cld v = p - c; // vector cp
+    cld neutral = {cos(angle), sin(angle)}; // unit vector
+    return c + v*neutral;
+}
+
+// rotate (anti-clockwise) a point p by an angle around origin
+cld rotate(cld p, ld angle) // angle in radian
+{
+    return {p.X*cos(angle) - p.Y*sin(angle), p.X*sin(angle) + p.Y*cos(angle)};
+    // return p * polar(1.0L, angle);
+}
+
+// compute the image of point r using mapping of (p to fp), and (q to fq)
+cld linearTransformation(cld p, cld q, cld r, cld fp, cld fq) { return fp + (r - p) * (fq - fp) / (q - p); }
+
+
+
+//.................................................................................................................................................................................
+
+

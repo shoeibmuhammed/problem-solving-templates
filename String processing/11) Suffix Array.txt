@@ -1,0 +1,200 @@
+
+
+/*                              Suffix Array                              */
+// calculate the suffix array in O(n * log2(n)), and LCP in O(n)
+// use int if time is strict
+
+// ....
+
+struct suffixArray
+{
+
+    // suff[i]: the index of the start of the i'th smallest suffix in lexicographic order, where suff[0] is an empty suffix
+    // lcp[i]: the length of the longest common prefix between suff[i] and suff[i - 1]
+    // pos[i]: the position (i.e., rank) of the suffix starting at index i in the sorted suffix array (pos[suff[i]] = i).
+
+    ll n;
+    string s;
+    vector < ll > suff, lcp, pos, lg;
+    vector < array < ll, 21 > > table;
+
+    suffixArray(string &_s, ll lim = 256)
+    {
+        s = _s;
+        n = s.size() + 1;
+        ll k = 0, a, b;
+        vector < ll > c(s.begin(), s.end() + 1), tmp(n), frq(max(n, lim));
+        c.back() = 0;
+        suff = lcp = pos = tmp, iota(suff.begin(), suff.end(), 0);
+        for(ll j = 0, p = 0; p < n; j = max(1ll, j * 2), lim = p)
+        {
+            p = j, iota(tmp.begin(), tmp.end(), n - j);
+            for(ll i = 0; i < n; i++) if(suff[i] >= j) tmp[p++] = suff[i] - j;
+
+            fill(frq.begin(), frq.end(), 0);
+            for(ll i = 0; i < n; i++) frq[c[i]]++;
+            for(ll i = 1; i < lim; i++) frq[i] += frq[i - 1];
+            for(ll i = n; i--;) suff[--frq[c[tmp[i]]]] = tmp[i];
+
+            swap(c, tmp), p = 1, c[suff[0]] = 0;
+            for(ll i = 1; i < n; i++)
+            {
+                a = suff[i - 1], b = suff[i];
+                c[b] = (tmp[a] == tmp[b] && tmp[a + j] == tmp[b + j] ? p - 1 : p++);
+            }
+        }
+
+        // LCP
+        for(ll i = 1; i < n; i++) pos[suff[i]] = i;
+        for(ll i = 0, j; i < n - 1; lcp[pos[i++]] = k)
+            for(k && k--, j = suff[pos[i] - 1]; s[i + k] == s[j + k]; k++) { }
+
+        // sparse table
+        lg.resize(n + 5);
+        table.resize(n + 5);
+        for(ll i = 2; i < n + 5; i++) lg[i] = lg[i / 2] + 1;
+        for(ll i = 0; i < n; i++) table[i][0] = lcp[i];
+        for(ll j = 1; j <= lg[n]; j++)
+            for(ll i = 0; i <= n - (1 << j); ++i)
+                table[i][j] = min(table[i][j - 1], table[i + (1 << (j - 1))][j - 1]);
+    }
+
+    // i and j are positions in the suffix array
+    ll queryLcp(ll i, ll j) // O(1)
+    {
+        // i = pos[i]; j = pos[j];
+        if(i == j) return n - suff[i] - 1;
+        if(i > j) swap(i, j);
+        i++;
+        ll len = lg[j - i + 1];
+        return min(table[i][len], table[j - (1 << len) + 1][len]);
+    }
+
+    // 1: s[l1..r1] < s[l2..r2], 0: s[l1..r1] = s[l2..r2], -1: s[l1..r1] > s[l2..r2]
+    ll cmp(ll l1, ll r1, ll l2, ll r2) // O(1)
+    {
+        ll k = min({queryLcp(l1, l2), r1 - l1 + 1, r2 - l2 + 1});
+        l1 += k; l2 += k;
+        if(l1 > r1 && l2 > r2) return 0;
+        if(l1 > r1) return 1;
+        if(l2 > r2) return -1;
+        return (s[l1] < s[l2] ? 1 : -1);
+    }
+};
+
+
+
+// ...................................................................................................................................
+
+
+
+// suffix array for array of integers
+struct suffixArray
+{
+
+    ll n;
+    vector < ll > a, suff, pos, lcp, lg;
+    vector < array < ll, 21 > > table;
+
+    suffixArray(const vector < ll > &input)
+    {
+        a = input;
+        a.push_back(-1);
+        n = a.size();
+        build_suffix_array();
+    }
+
+    void build_suffix_array()
+    {
+        // Coordinate compress the values in a
+        vector < ll > sorted = a;
+        sort(sorted.begin(), sorted.end());
+        sorted.erase(unique(sorted.begin(), sorted.end()), sorted.end());
+        for(auto &x : a) x = lower_bound(sorted.begin(), sorted.end(), x) - sorted.begin();
+
+        vector < ll > c(n), cnt(n), pn(n), cn(n);
+        suff.resize(n); pos.resize(n);
+
+        for(ll i = 0; i < n; i++) cnt[a[i]]++;
+        for(ll i = 1; i < cnt.size(); i++) cnt[i] += cnt[i - 1];
+        for(ll i = 0; i < n; i++) suff[--cnt[a[i]]] = i;
+        c[suff[0]] = 0;
+        ll classes = 1;
+        for (ll i = 1; i < n; i++)
+        {
+            if(a[suff[i]] != a[suff[i - 1]]) classes++;
+            c[suff[i]] = classes - 1;
+        }
+
+        for(ll h = 0; (1 << h) < n; h++)
+        {
+            for(ll i = 0; i < n; i++)
+            {
+                pn[i] = suff[i] - (1 << h);
+                if(pn[i] < 0) pn[i] += n;
+            }
+
+            fill(cnt.begin(), cnt.begin() + classes, 0);
+            for(ll i = 0; i < n; i++) cnt[c[pn[i]]]++;
+            for(ll i = 1; i < classes; i++) cnt[i] += cnt[i - 1];
+            for(ll i = n - 1; i >= 0; i--) suff[--cnt[c[pn[i]]]] = pn[i];
+
+            cn[suff[0]] = 0;
+            classes = 1;
+            for(ll i = 1; i < n; i++)
+            {
+                pair < ll,ll > cur = {c[suff[i]], c[(suff[i] + (1 << h)) % n]};
+                pair < ll,ll > prev = {c[suff[i - 1]], c[(suff[i - 1] + (1 << h)) % n]};
+                if(cur != prev) classes++;
+                cn[suff[i]] = classes - 1;
+            }
+            c.swap(cn);
+        }
+
+        for(ll i = 0; i < n; i++) pos[suff[i]] = i;
+
+        // LCP
+        lcp.resize(n);
+        ll k = 0;
+        for(ll i = 0; i < n - 1; i++)
+        {
+            ll pi = pos[i];
+            ll j = suff[pi - 1];
+            while(i + k < n && j + k < n && a[i + k] == a[j + k]) k++;
+            lcp[pi] = k;
+            if(k) k--;
+        }
+
+        // sparse table
+        lg.resize(n + 1);
+        for(ll i = 2; i <= n; i++) lg[i] = lg[i / 2] + 1;
+        ll L = lg[n] + 1;
+        table.assign(n, array<ll, 21>());
+        for(ll i = 0; i < n; i++) table[i][0] = lcp[i];
+        for(ll j = 1; j < L; j++)
+        {
+            for(ll i = 0; i + (1 << j) <= n; i++)
+            {
+                table[i][j] = min(table[i][j - 1], table[i + (1 << (j - 1))][j - 1]);
+            }
+        }
+    }
+
+    ll queryLcp(ll i, ll j)
+    {
+        i = pos[i]; j = pos[j];
+
+        if(i == j) return n - suff[i] - 1;
+        if(i > j) swap(i, j);
+        i++;
+        ll len = lg[j - i + 1];
+        return min(table[i][len], table[j - (1 << len) + 1][len]);
+    }
+};
+
+
+
+// ...................................................................................................................................
+
+
+

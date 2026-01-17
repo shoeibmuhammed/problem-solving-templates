@@ -1,0 +1,206 @@
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      CHT                                      */
+//
+//
+
+
+//----------------------------------------------------------------------------------
+
+
+// Min Static CHT
+// x in an arbitrary order.
+// insert_line in O(1), eval in O(1), eval2 in O(log(n)).
+
+
+struct CHT
+{
+    vector < ll > m, b;
+    ll ptr = 0;
+
+    bool bad(ll l1, ll l2, ll l3)
+    {
+        return 1.0 * (b[l3] - b[l1]) * (m[l1] - m[l2])  <= 1.0 * (b[l2] - b[l1]) * (m[l1] - m[l3]); //(slope dec + query min),(slope inc + query max)
+        return 1.0 * (b[l3] - b[l1]) * (m[l1] - m[l2])  > 1.0 * (b[l2] - b[l1]) * (m[l1] - m[l3]); //(slope dec + query max), (slope inc + query min)
+    }
+
+    void insert_line(ll _m, ll _b)
+    {
+        m.push_back(_m);
+        b.push_back(_b);
+        ll s = m.size();
+        while(s >= 3 && bad(s - 3, s - 2, s - 1))
+        {
+            s--;
+            m.erase(m.end() - 2);
+            b.erase(b.end() - 2);
+        }
+    }
+
+    ll f(ll i, ll x) { return m[i]*x + b[i]; }
+
+    //(slope dec + query min), (slope inc + query max) -> x increasing
+    //(slope dec + query max), (slope inc + query min) -> x decreasing
+    ll eval(ll x)
+    {
+        if(ptr >= m.size()) ptr = m.size() - 1;
+        while(ptr < m.size() - 1 && f(ptr + 1, x) < f(ptr, x)) ptr++;
+        return f(ptr, x);
+    }
+
+    // x in an arbitrary order (binary search on the hull)
+    ll eval2(ll x, ll l, ll r)
+    {
+        ll mid = (l + r) / 2;
+        if(mid + 1 < m.size() && f(mid + 1, x) < f(mid, x)) return eval2(x, mid + 1, r); // > for max
+        if(mid - 1 >= 0 && f(mid - 1, x) < f(mid, x)) return eval2(x, l, mid - 1);       // > for max
+        return f(mid, x);
+    }
+};
+
+
+//----------------------------------------------------------------------------------
+
+
+// Max CHT from scratch
+// https://vjudge.net/problem/UVA-1106 - https://ideone.com/qFvwfW
+
+
+struct _data
+{
+    ll d, b, s, p;
+    bool operator < (const _data &other) const
+    {
+        return d < other.d;
+    }
+};
+
+
+ll n, C, D, tt = 1;
+vector < _data > a;
+
+
+ll sub(const pair < ll, ll > &l, ll x) // substitue with x
+{
+    return l.first*x + l.second;
+}
+
+ld inter(const pair < ll, ll > &l1, const pair < ll, ll > &l2)
+{
+    return (l2.second - l1.second - .0) / (l1.first - l2.first - .0); // m1*x + c1 = m2*x + c2, x = (c2 - c1) / (m1 - m2);
+}
+
+bool imp(const pair < ll, ll > &l1, const pair < ll, ll > &l2, const pair < ll, ll > &l3) // if l2 is important line
+{
+    return inter(l1, l2) < inter(l2, l3);
+}
+
+
+void solve()
+{
+
+    while(1)
+    {
+        cin >> n >> C >> D;
+
+        if(!n) break;
+
+        a.resize(n + 2);
+        for(ll i = 1; i <= n; i++) cin >> a[i].d >> a[i].b >> a[i].s >> a[i].p;
+
+        a[0].d = 0; a[0].b = 0; a[0].s = C; a[0].p = 0; // dummy day 0
+        a[n + 1].d = D + 1; a[n + 1].b = 0; a[n + 1].s = 0; a[n + 1].p = 0; // dummy day n + 1
+
+        sort(all(a));
+
+
+        vector < ll > dp(n + 2);
+        map < ll, ll > lines; lines[0] = 0;
+        for(ll l = 0; l <= n + 1; l++)
+        {
+            ll &ret = dp[l]; ret = 0;
+
+            ll x = a[l].d;
+
+            while((ll)lines.size() > 1)
+            {
+                auto frst = lines.begin();        // small slope
+                auto sec = lines.begin(); sec++;  // big slope
+
+                if(sub(*frst, x) > sub(*sec, x)) break;
+
+                lines.erase(frst); // frst become useless
+            }
+
+            ret = sub(*lines.begin(), x); // first line is the optimal one
+
+            if(ret < a[l].b) continue;
+
+            ll m = a[l].p;
+            ll c = ret - a[l].b + a[l].s - a[l].p*a[l].d - a[l].p;
+
+            auto l2 = lines.emplace(m, c).first; // emplace fails if there is mp[m]
+            l2->second = max(l2->second, c); // max c
+
+            auto l1 = l2, l3 = l2;
+            if(l2 != lines.begin() && l2 != --lines.end() && !imp(*--l1, *l2, *++l3)) // useless line
+            {
+                lines.erase(l2);
+                continue;
+            }
+
+            while(l2 != lines.begin())
+            {
+                auto bef = l2;
+                if(--bef != lines.begin())
+                {
+                    auto bef2 = bef;
+                    if(!imp(*--bef2, *bef, *l2))
+                    {
+                        lines.erase(bef);
+                    }
+                    else { break; }
+                }
+                else { break; }
+            }
+
+            while(l2 != --lines.end())
+            {
+                auto aft = l2;
+                if(++aft != --lines.end())
+                {
+                    auto aft2 = aft;
+                    if(!imp(*l2, *aft, *++aft2))
+                    {
+                        lines.erase(aft);
+                    }
+                    else { break; }
+                }
+                else { break; }
+            }
+        }
+
+
+        cout << "Case " << tt++ << ": " << dp[n + 1] << endl;
+
+    }
+
+
+
+/*
+6 10 20
+6 12 1 3
+1 9 1 2
+3 2 1 2
+8 20 5 4
+4 11 7 4
+2 10 9 1
+0 0 0
+ */
+
+
+    return;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

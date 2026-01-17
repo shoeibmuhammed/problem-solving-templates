@@ -1,0 +1,202 @@
+//.................................................................................................................................................................................
+
+
+
+// squared distance
+T dist2(cT pt1, cT pt2 = {0, 0})
+{
+    T dx = fabsl(pt1.X - pt2.X);
+    T dy = fabsl(pt1.Y - pt2.Y);
+    return dx*dx + dy*dy;
+}
+
+// euclidean distance
+ld dist(cld pt1, cld pt2 = {0.0L, 0.0L})
+{
+    ld dx = fabsl(pt1.X - pt2.X);
+    ld dy = fabsl(pt1.Y - pt2.Y);
+    return (ld)sqrtl(dx*dx + dy*dy);
+    // return (ld)abs(pt1 - pt2);
+    // return (ld)sqrtl(dist2((T)pt1, (T)pt2));
+}
+
+// determine the sign of the value
+ll sgn(ld val) { return (val > eps) - (val < -eps); }
+
+// check of twol points are equal or not
+bool isEqual(cld a, cld b) { return sgn(a.X - b.X) == 0 && sgn(a.Y - b.Y) == 0; }
+
+// dot procudt: v . w = |v| * |w| * cosθ = v.X*w.X + v.Y*w.Y
+T dot(cT v, cT w) { return v.X*w.X + v.Y*w.Y; }
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cT v, cT w) { return v.X*w.Y - v.Y*w.X; }
+
+// get the perpendicular vector (rotated 90° anti-clockwise)
+cT perp(cT p) { return {-p.Y, p.X}; }
+
+// computes the orientation of the turn from point a → b → c
+// the sign of the cross product tells you the direction of the turn (orientation) between two vectors.
+// orient(a, b, c) = orient(b, c, a) = orient(c, a, b)
+// orient(a, b, c) > 0  left turn (c is left to ab)
+// orient(a, b, c) = 0  collinear (a, b, c lie on a line)
+// orient(a, b, c) < 0  right turn (c is right to ab)
+T orient(cT a, cT b, cT c) { return cross(b - a, c - a); } // ab cross ac
+
+struct Line
+{
+    cld v; // {b, -a}
+    T c;
+
+    // vector v & constant c
+    Line(cld v, T c) : v(v), c(c) { }
+
+    // ax + by = c
+    Line(T a, T b, T _c)
+    {
+        v = {b, -a};
+        c = _c;
+    }
+
+    // two points on the line (a → b)
+    Line(cld a, cld b)
+    {
+        v = b - a;
+        c = cross(v, a);
+    }
+
+    // return +ve if point p is left to the Line ab, -ve if right to the line, and 0 if on the line
+    T side(cld p) { return cross(v, p) - c; } // ax + by - c
+
+    // length of the perpendicular line of the point p on the line is: |ax + by - c| / sqrtl(a*a + b*b)
+    ld dist(cld p)   { return fabsl(side(p)) / abs(v); }
+    ld sqDist(cld p) { return side(p)*side(p) / (ld)dist2(v);} // dist * dist
+
+    // return a line passes through p and perpendicular on the line
+    Line perpLineThrough(cld p) { return {p, p + perp(p)}; }
+
+    // sorts points in the order of their projection along v.
+    // returns true, if Point p projection on the line lies before point q projection on the line.
+    bool cmpProjection(cld p, cld q) { return dot(v, q) - dot(v, p) > eps; } // > -eps if u want equality
+
+    // translates a line by a vector t
+    Line translate(cld t) { return {v, c + cross(v,t)}; }
+
+    // shifts the line to the left by a distance r (perpendicular to its direction)
+    Line shiftLeft(T r) { return {v, c + r*abs(v)}; }
+
+    // shifts the line to the right by a distance r (perpendicular to its direction)
+    Line shiftRight(T r) { return {v, c - r*abs(v)}; }
+
+    // computes the orthogonal projection point of a point p onto a line
+    cld projection(cld p) { return p - perp(v) * (ld)side(p) / (ld)dist2(v); }
+
+    // computes the reflection point of point p across a line
+    cld reflection(cld p) { return p - perp(v) * 2.0L * (ld)side(p) / (ld)dist2(v); }
+};
+
+// computes the intersection point of two lines
+pair < bool, cld > Lineintersection(Line l1, Line l2)
+{
+    T d = cross(l1.v, l2.v);
+    if(!sgn(d)) return {false, {}}; // or fabsl(d) < eps
+    return {true, (l2.v*(ld)l1.c - l1.v*(ld)l2.c) / (ld)d};
+}
+
+// computes an angle bisector of two (non-parallel) lines l1 and l2 is a line that forms equal angles with l1 and l2
+// interior = 1 means internal bisector, else external bisector
+// interior bisector is a line  whose direction vector points between the direction vectors of l1 and l2
+Line Linebisector(Line l1, Line l2, bool interior = 1)
+{
+    assert(sgn(cross(l1.v, l2.v)) != 0); // l1 and l2 cannot be parallel!
+    ld sign = interior? 1 : -1;
+    return {l2.v/abs(l2.v) + l1.v/abs(l1.v) * sign, l2.c/abs(l2.v) + l1.c/abs(l1.v) * sign};
+}
+
+
+
+/*                              Segment                             */
+// a segment (short for line segment) is the straight part of a line between two endpoints.
+// starts at point a, ends at point b, includes all points between a and b
+//
+
+
+
+// check if the point p lies inside the disk with diameter ab
+bool inDisk(cld a, cld b, cld p) { return dot(a - p, b - p) <= eps; }
+
+// check if the point p lies on the segment ab
+bool onSegment(cld a, cld b, cld p) { return !sgn(orient(a, b, p)) && inDisk(a, b, p); }
+
+// computes whether segments ab and cd intersect properly, and if so, computes the intersection point
+// a proper intersection means that the segments ab and cd intersect at a single point in their interiors, not at an endpoint
+pair < bool, cld > properIntersection(cld a, cld b, cld c, cld d)
+{
+    T oa = orient(c, d, a), ob = orient(c, d, b), oc = orient(a,b,c), od = orient(a,b,d);
+
+    if(sgn(oa)*sgn(ob) < 0 && sgn(oc)*sgn(od) < 0)
+    {
+        cld pt = (a*(ld)ob - b*(ld)oa) / (ld)(ob - oa);
+
+        if(sgn(pt.X) == 0) pt = {0.0L, pt.Y};
+        if(sgn(pt.Y) == 0) pt = {pt.X, 0.0L};
+
+        return {true, pt};
+    }
+    return {false, { }};
+}
+
+// computes the set of all intersection end points between two segments ab and cd
+// Disjoint: 0 points
+// Proper Intersection: exactly 1 interior point
+// Touch at end points: exactly 1 shared point
+// Overlap (collinear): 2 points of the shared subsegment
+vector < pair < ld, ld > > allIntersection(cld a, cld b, cld c, cld d)
+{
+    auto it = properIntersection(a, b, c, d);
+    if(it.first) return {make_pair(it.second.X, it.second.Y)};
+
+    set < pair < ld, ld > > st;
+
+    if(isEqual(a, c) || isEqual(a, d)) st.insert(make_pair(a.X, a.Y));
+    if(isEqual(b, c) || isEqual(b, d)) st.insert(make_pair(b.X, b.Y));
+
+    if(onSegment(c, d, a)) st.insert(make_pair(a.X, a.Y));
+    if(onSegment(c, d, b)) st.insert(make_pair(b.X, b.Y));
+    if(onSegment(a, b, c)) st.insert(make_pair(c.X, c.Y));
+    if(onSegment(a, b, d)) st.insert(make_pair(d.X, d.Y));
+
+    vector < pair < ld, ld > > v;
+    for(auto i : st)
+    {
+        if(sgn(i.first) == 0) i.first = 0.0L;
+        if(sgn(i.second) == 0) i.second = 0.0L;
+        v.push_back(i);
+    }
+
+    return v;
+}
+
+// computes the shortest distance from point p to the segment ab
+ld pointSegmentDist(cld a, cld b, cld p)
+{
+    if(!isEqual(a, b))
+    {
+        Line l(a, b);
+        if(l.cmpProjection(a, p) && l.cmpProjection(p, b)) return l.dist(p);
+    }
+    return min(abs(p - a), abs(p - b)); // otherwise distance to a or b
+}
+
+// computes the shortest distance between two segment
+ld segmentSegmentDist(cld a, cld b, cld c, cld d)
+{
+    if(properIntersection(a, b, c, d).first) return 0;
+    return min({pointSegmentDist(a, b, c), pointSegmentDist(a, b, d), pointSegmentDist(c, d, a), pointSegmentDist(c, d, b)});
+}
+
+
+
+//.................................................................................................................................................................................
+
+

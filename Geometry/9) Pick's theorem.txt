@@ -1,0 +1,97 @@
+//.................................................................................................................................................................................
+
+
+
+// cross product: v x w = |v| * |w| * sinθ = v.X*w.Y - v.Y*w.X
+T cross(cT v, cT w) { return v.X*w.Y - v.Y*w.X; }
+
+// compute the area of a polygon
+T polygonArea(vector < cT > p)
+{
+    ll n = (ll)p.size();
+    T area = 0;
+    for(ll i = 0; i < n; i++)
+        area += cross(p[i], p[(i + 1) % n]);
+    return llabs(area); // double area
+}
+
+
+
+/*                              Pick's theorem                              */
+// take care to make T = ll;
+//
+//
+// pick's theroem: area of a polygon = I + B/2 - 1
+// I is the lattice points strictly inside the polygon, B is the lattice points on the boundary of the polygon.
+// Lattice points are points in the plane (or space) whose coordinates are both integers.
+// works when: 1) simple polygon 2) all vertices are lattice points 3) polygon in 2D
+//
+// the number of lattice points on a line segment between two points is gcd(|x2 - x1|, |y2 - y1|) + 1
+// works when: 1) both end points are lattice points 2) segment in 2D 3) segment is a staright line not a curve
+//
+// now you can calculate area & B  you can calculate I now
+//
+
+
+
+// calculate the number of lattice points on a segment
+ll segmentLattice(cT pt1, cT pt2)
+{
+    return gcd(abs(pt1.X - pt2.X), abs(pt1.Y - pt2.Y)) + 1ll;
+}
+
+// calculate B (the lattice points on the boundary of the polygon)
+ll calcB(vector < cT > &p)
+{
+    ll n = (ll)p.size(), res = 0;
+    for(ll i = 0; i < n; i++)
+         res += segmentLattice(p[i], p[(i + 1) % n]);
+    return res - n; // overcount (each vertix is calculated twice)
+}
+
+// calculate I (the lattice points strictly inside the polygon)
+ll calcI(vector < cT > &p)
+{
+    // area = I + B/2 - 1
+    // 2*area = 2*I + B - 2
+    // I = (2*area - B + 2) / 2
+
+    return (polygonArea(p) - calcB(p) + 2) / 2;
+}
+
+// calculate the lattice points in and on the circle
+ll circleLatticePoints(ll r)
+{
+    ll res = 0;
+    for(ll x = -r; x <= r; ++x)
+    {
+        ll y = (ll)sqrtl(r*r - x*x);
+        res += 2*y + 1;  // from -y to y
+    }
+    return res;
+}
+
+ll circleLatticePoints(cld pt, ld r)
+{
+    ll res = 0;
+
+    ll lx = (ll)(pt.X - r), rx = (ll)(pt.X + r);
+    for(ll x = lx; x <= rx; x++)
+    {
+        ld dx = x - pt.X;
+        ld dySQ = r*r - dx*dx;
+
+        if(sgn(dySQ) == -1) continue;
+
+        ll dy = (ll)sqrtl(dySQ);
+        res += 2*dy + 1;
+    }
+
+    return res;
+}
+
+
+
+//.................................................................................................................................................................................
+
+

@@ -1,0 +1,29 @@
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      DP optimization using DS (Segment Tree, BIT, ..)                                   */
+// The idea of using a Segment Tree (or similar data structures like BIT)
+// in DP optimization is to efficiently compute range queries and
+// update values that are needed for transitions in the DP state.
+// it reduces the inner DP transition from O(n) to O(log(n)) per transition.
+//
+// instead of use a for loop to make specific operations  use segment tree  magic!
+//
+// remember when update node, don't overwrite the curr value in it.
+//
+// Transitions: 1) dp[i] = min(dp[j] + cost[j..i]) = pre[i] + min(dp[j] - pre[j - 1]), where li <= j <= ri  min segment tree (https://codeforces.com/gym/316406/problem/A).
+//              2) dp[i][j] = count(dp[1..i[[j - 1])  sm segment tree (https://codeforces.com/gym/316406/problem/C).
+//              3) dp[i] = h[i] + max(dp[j]), where j < i, a[j] < b[l]  max segment tree (https://codeforces.com/problemset/problem/777/E).
+//              4)
+//
+// Tricks: 1) build a path & compression idea  (https://codeforces.com/contest/474/problem/E).
+//
+//
+
+
+
+
+
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

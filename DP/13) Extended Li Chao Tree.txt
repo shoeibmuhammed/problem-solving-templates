@@ -1,0 +1,93 @@
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*                                      Extended Li Chao Tree                                      */
+//
+
+
+//------------------------
+
+
+// Min Dynamic Extended Li Chao Tree
+// get the k'th smallest value.
+// insert_line in O(k * log(n)), query in O(k * log(n)).
+// It handles arbitrary insertion order of lines (slopes) and allows arbitrary x values for queries.
+
+
+struct line
+{
+    ll a, b;
+    ll subs(ll x) { return a * x + b; }
+};
+
+struct ExtendedLiChaoTree
+{
+    ll n, k;
+    vector < vector < line > > a;
+
+    ExtendedLiChaoTree(ll n, ll k) : n(n), k(k) { a.resize(4 * n); };
+
+    void insert_line(ll node, ll left, ll right, line x)
+    {
+        if (a[node].size() < 2 * k - 1)
+        {
+            a[node].push_back(x);
+            return;
+        }
+
+        ll mid = (left + right) / 2;
+
+        a[node].push_back(x);
+
+        nth_element(a[node].begin(), a[node].begin() + 2 * k - 2, a[node].end(), [&](line a, line b)
+                    { return a.subs(mid) < b.subs(mid); });
+
+        line qui = a[node].back();
+
+        a[node].pop_back();
+
+        if(left == right) return;
+
+        ll cntl = 0, cntr = 0;
+        for(auto i : a[node])
+        {
+            bool L = qui.subs(left) < i.subs(left);
+            cntl += L, cntr += !L;
+        }
+
+        if(cntl >= cntr) insert_line(2 * node, left, mid, qui);
+        else insert_line(2 * node + 1, mid + 1, right, qui);
+    }
+
+    void get_candidates(ll node, ll left, ll right, ll val, vector < ll > &rep)
+    {
+        for (auto i : a[node]) rep.push_back(i.subs(val));
+
+        if(left == right) return;
+
+        ll mid = (left + right) / 2;
+        if(val <= mid) get_candidates(2 * node, left, mid, val, rep);
+        else get_candidates(2 * node + 1, mid + 1, right, val, rep);
+    }
+
+    ll eval(ll val)
+    {
+        vector < ll > rep;
+        get_candidates(1, 1, n, val, rep);
+        nth_element(rep.begin(), rep.begin() + k - 1, rep.end());
+        return rep[k - 1];
+    }
+};
+
+// ExtendedLiChao elc((ll)1e6, 1);
+// elc.insert_line(1, 1, (ll)1e6, {m, c});
+// elc.eval(x);
+
+
+//-----------------------
+
+
+
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

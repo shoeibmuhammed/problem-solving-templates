@@ -1,0 +1,240 @@
+
+
+
+// a game be played by two players on an arbitrary graph, the current state of the game is a certain vertex.
+// the players perform moves by turns, and move from the current vertex to an adjacent vertex using a connecting edge.
+// depending on the game, the person that is unable to move will either lose or win the game.
+//
+//
+
+
+
+//..............................................................................................................................
+
+
+
+// given an arbitrary directed graph with cycles.
+// determine who will win the game if both players play optimally or determine that the result of the game will be a draw.
+//
+
+vector < vector < ll > > graph, revGraph;
+vector < ll > vis, outDeg;
+vector < ll > state; // 0: losing, 1: wining, 2: draw
+
+void dfs(ll root)
+{
+    vis[root] = 1;
+    for(const auto &i : revGraph[root])
+    {
+        if(vis[i]) continue;
+
+        if(state[root] == 0) state[i] = 1; // at least one child in lossing state --> parent wins
+        else if(--outDeg[i] == 0) state[i] = 0; // all childrens are in a winning state --> parent loses
+        else continue; // still undecided
+
+        dfs(i); // propagate backwards
+    }
+}
+
+void solve()
+{
+
+    ll n, m; cin >> n >> m;
+    graph.assign(n + 1, vector < ll > ());
+    revGraph.assign(n + 1, vector < ll > ());
+    outDeg.assign(n + 1, 0);
+    for(ll i = 1; i <= m; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+        outDeg[u]++;
+
+        revGraph[v].push_back(u);
+    }
+
+    vis.assign(n + 1, 0);
+    state.assign(n + 1, 2);
+    for(ll i = 1; i <= n; i++)
+    {
+        if(outDeg[i] == 0)
+        {
+            state[i] = 0;
+            dfs(i);
+        }
+    }
+
+
+
+    return;
+}
+
+
+
+//..............................................................................................................................
+
+
+
+// https://leetcode.com/problems/cat-and-mouse/description/
+// mouse at 1, cat at 2, mouse wins if can go to 0, cat can't go to 0
+
+class Solution
+{
+public:
+
+    int dp[201][51][51];
+    int slv(int turn, int x, int y, vector < vector < int > > &graph)
+    {
+        if(turn > 200) return 0; // draw
+        if(x == 0) return 1; // mouse wins
+        if(x == y) return 2; // cat wins
+
+        int &ret = dp[turn][x][y];
+        if(ret != -1) return ret;
+
+        if(turn % 2 == 0) // mouse turn
+        {
+            int flag = 0;
+            for(const auto &i : graph[x])
+            {
+                ret = slv(turn + 1, i, y, graph);
+                if(ret == 1) return ret;
+                if(ret == 0) flag = 1;
+            }
+            if(flag) ret = 0;
+            else ret = 2;
+
+            return ret;
+        }
+        else
+        {
+            int flag = 0;
+            for(const auto &i : graph[y])
+            {
+                if(i == 0) continue;
+                ret = slv(turn + 1, x, i, graph);
+                if(ret == 2) return ret;
+                if(ret == 0) flag = 1;
+            }
+            if(flag) ret = 0;
+            else ret = 1;
+
+            return ret;
+        }
+
+
+        return ret;
+    }
+
+    int catMouseGame(vector < vector < int > > &graph)
+    {
+        int n = graph.size();
+        memset(dp, -1, sizeof(dp));
+        return slv(0, 1, 2, graph);
+    }
+};
+
+
+//........................................
+
+
+class Solution
+{
+public:
+    struct _data {  int turn, mouse, cat;  };
+    vector < _data > revGraph[2][51][51];
+    int dp[2][51][51], vis[2][51][51], state[2][51][51], outDeg[2][51][51];
+
+    void dfs(_data root)
+    {
+        vis[root.turn][root.mouse][root.cat] = 1;
+
+        for(const auto &i : revGraph[root.turn][root.mouse][root.cat])
+         {
+            if(vis[i.turn][i.mouse][i.cat]) continue;
+
+            int curr = state[root.turn][root.mouse][root.cat];
+
+            if((curr == 1 && i.turn == 0) || (curr == 2 && i.turn == 1)) state[i.turn][i.mouse][i.cat] = curr;
+            else if(--outDeg[i.turn][i.mouse][i.cat] == 0) state[i.turn][i.mouse][i.cat] = curr;
+            else continue;
+
+            dfs(i);
+        }
+    }
+
+    int catMouseGame(vector < vector < int > > &graph)
+    {
+        int n = graph.size();
+
+        memset(dp, -1, sizeof(dp));
+        memset(vis, 0, sizeof(vis));
+        memset(state, 0, sizeof(state));
+        memset(outDeg, 0, sizeof(outDeg));
+
+        for(int i = 0; i <= 1; i++) // turn
+        {
+            for(int j = 0; j < n; j++) // mouse
+            {
+                for(int k = 1; k < n; k++) // cat
+                {
+
+                    if(j == 0)
+                    {
+                        state[i][j][k] = 1;
+                        continue;
+                    }
+
+                    if(j == k)
+                    {
+                        state[i][j][k] = 2;
+                        continue;
+                    }
+
+
+                    if(i == 0) // mouse turn
+                    {
+                        for(const auto &u : graph[j])
+                        {
+                            revGraph[1][u][k].push_back({i, j, k});
+                            outDeg[i][j][k]++;
+                        }
+                    }
+                    else
+                    {
+                        for(const auto &u : graph[k])
+                        {
+                            if(!u) continue;
+
+                            revGraph[0][j][u].push_back({i, j, k});
+                            outDeg[i][j][k]++;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        for(int i = 0; i <= 1; i++)
+        {
+            for(int j = 0; j < n; j++)
+            {
+                for(int k = 1; k < n; k++)
+                {
+                    if(state[i][j][k] && !vis[i][j][k])
+                    {
+                        dfs({i, j, k});
+                    }
+                }
+            }
+        }
+
+        return state[0][1][2];
+    }
+};
+
+
+
+//..............................................................................................................................
+
+
+
