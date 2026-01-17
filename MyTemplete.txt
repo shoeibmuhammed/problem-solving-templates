@@ -1,0 +1,117 @@
+// Author: Muhammed Khaled Shoeib
+
+// #pragma GCC optimize("O3, unroll-loops")
+#include <bits/stdc++.h>
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+using namespace __gnu_pbds;
+using namespace std;
+//....................................................
+// struct to speed-up the unordered data structures like map/set.
+struct hash_function // unordered + modified hash >> ordered
+{   static uint64_t splitmix64(uint64_t x) {
+        x += 0x9e3779b97f4a7c15; x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9;
+        x = (x ^ (x >> 27)) * 0x94d049bb133111eb; return x ^ (x >> 31); }
+    size_t operator()(uint64_t x) const {
+        static const uint64_t FIXED_RANDOM = chrono::steady_clock::now().time_since_epoch().count();
+        return splitmix64(x + FIXED_RANDOM); } };
+//....................................................
+template < typename T, typename Compare = less < T > > // O(logn)
+using ordered_set = tree < T, null_type, Compare, rb_tree_tag, tree_order_statistics_node_update>;
+// less_equal:    asc.  not_unique, st.order_of_key(k) --> no. of items < k,  less: unique
+// greater_equal: desc. not_unique, st.order_of_key(k) --> no. of items > k,  greater: unique
+// *st.find_by_order(k) --> st[k] (Zero-indexed)
+// less_equal (u can't erase here!) == multi-set
+template < class K, class V > using HT = gp_hash_table < K, V, hash_function>; // faster than unordered_map
+template < typename T > using maxpq = priority_queue < T >;
+template < typename T > using minpq = priority_queue < T, vector< T >, greater< T > >;
+//....................................................
+#define     boost                  ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0)
+#define     precision(a)           cout << fixed << setprecision(a)
+#define     alo                    cout << "alooooooooooo!" << endl
+#define     YES                    cout << "YES" << endl
+#define     Yes                    cout << "Yes" << endl
+#define     yes                    cout << "yes" << endl
+#define     NO                     cout << "NO" << endl
+#define     No                     cout << "No" << endl
+#define     no                     cout << "no" << endl
+#define     ne                     cout << -1 << endl
+#define     endl                   "\n"
+#define     mem(mat, val)          memset(mat, val, sizeof(mat))
+#define     ones(x)               __builtin_popcountll(x)
+#define     msb(x)                63ll - __builtin_clzll(x)
+#define     lsb(x)                __builtin_ffsll(x) - 1ll
+//....................................................
+#define     all(x)                 x.begin(), x.end()
+#define     rall(x)                x.rbegin(),x.rend()
+#define     _ceil(a, b)            (((ll)(a) + (ll)(b - 1)) / (ll)(b)) // up
+#define     _floor(a, b)           (a / b) // down
+#define     _round(a, b)           ((a + (b / 2ll)) / b) // nearest
+#define         X                  real()
+#define         Y                  imag()
+//....................................................
+// using ll  = int;                                                                       // take care of this shit!
+using ll  = long long;
+using i64 = long long; using i32 = int; using lli = long long int; using LL = __int128;
+using ld  = long double; using LD = __float128; using ull = unsigned long long;
+using cd = complex < double >; using cld = complex < ld >; using T = ld; using cT = complex < T >;
+//......................................................
+mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+#define getrand(l, r) uniform_int_distribution < long long > (l, r) (rng)
+//......................................................
+int dx[4] = {-1, 0, 1, 0}, dy[4] = {0, 1, 0, -1};
+int dx_diag[4] = { 1, 1, -1, -1 }, dy_diag[4] = { 1, -1, -1, 1 };
+int dx_all[8] = {-1, -1, -1, 0, 1, 1, 1, 0}, dy_all[8] = {-1, 0, 1, 1, 1, 0, -1, -1};
+int dx_knight[8] = {2, 2, 1, 1, -2, -2, -1, -1}, dy_knight[8] = {1, -1, 2, -2, 1, -1, 2, -2};
+const ld  pi  = acos(-1); // 3.141592653589793238462643383279
+const ld eps = 1e-9;
+const ll inf = (ll)INT32_MAX; // 2e9
+const ll oo = (ll)1e18;       // 1e15 (may cause OF in DP, Binary Search, ...)
+const ll OO = (ll)INT64_MAX;  // 9e18
+const ll mod  = (ll)1e9 + 7;  // 1e9 + 7, 998244353
+//..................................................... // string(len, char);
+/*
+ * think twice, code once.
+ * think of different approaches to tackle a problem, write them down.
+ * think of different views of the problem, don't look from only one side.
+ * don't get stuck in one approach/problem.
+ * common mistakes: line 49, overflow (sum of many numbers), corner cases (n = 1), over/under count, infinite loops,
+ * TLE, MLE (int instead of ll, using memset, Recursive DP, ...), RTE (out of bounds indexing), ....
+ */
+///____________________________________________ Shoeib __________________________________________________________
+
+
+
+void solve()
+{
+
+
+
+
+
+
+
+
+
+
+
+
+    return;
+}
+
+
+
+signed main()
+{
+    boost;
+
+    // freopen("line3.in", "r", stdin);
+    // freopen("line3.out", "w", stdout);
+
+    // precision(20);
+
+    i32 _ = 1; cin >> _;
+    cout.flush();
+    while(_--) solve();
+    return 0;
+}
