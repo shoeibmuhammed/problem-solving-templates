@@ -1,0 +1,149 @@
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                      Capcity-Scaling                                      */
+// A classic improvement over the basic Ford–Fulkerson algorithm for computing maximum flow.
+// Idea: Same as Ford–Fulkerson (find augmenting paths in the residual graph and push bottleneck flow),
+// but we do it in phases using a threshold Δ (delta):
+//   - Start with Δ = highest power of 2 <= maximum edge capacity in the network.
+//   - In the current phase, we only allow DFS to use edges with remainig capacity >= Δ.
+//   - Keep finding Δ-augmenting paths and push flow by the bottleneck value.
+//   - When no more Δ-augmenting paths exist, halve Δ and repeat till Δ becomes zero.
+// This forces the algorithm to push large amounts of flow first and avoids wasting time on tiny bottlenecks early.
+// Time complexity is O(E^2 * log2(maxCap))
+//
+
+
+
+struct Edge
+{
+    ll u, v, flow = 0, cap = 0;
+
+    Edge(ll u, ll v): u(u), v(v) { }
+    Edge(ll u, ll v, ll c): u(u), v(v), cap(c) { }
+
+    ll remCap() { return cap - flow; }
+};
+
+struct CapacityScaling
+{
+    ll n, s, t, visId = 1, maxCap = 0;
+    vector < ll > vis;
+    vector < Edge > edges;
+    vector < vector < ll > > graph; // store id of edges
+
+    CapacityScaling(ll n, ll s, ll t) : n(n), s(s), t(t)
+    {
+        vis.assign(n + 1, 0);
+        graph.assign(n + 1, {});
+    }
+
+    void addEdge(ll u, ll v, ll w = oo, ll undir = 0)
+    {
+        maxCap = max(maxCap, w);
+
+        graph[u].push_back((ll)edges.size());
+        edges.push_back(Edge(u, v, w)); // Forward residual edge: flow/cap
+
+        graph[v].push_back((ll)edges.size());
+        edges.push_back(Edge(v, u, w * undir)); // Backward residual edge: -flow/0
+    }
+
+    ll maxFlow()
+    {
+        ll flow = 0;
+
+        ll delta = (1ll << msb(maxCap));
+
+        while(delta > 0)
+        {
+            while(ll bottleNeck = dfs(s, delta)) flow += bottleNeck, visId++;
+            visId++;
+            delta >>= 1;
+        }
+
+        return flow;
+    }
+
+    ll minCut()
+    {
+        return maxFlow();
+    }
+
+    ll dfs(ll u, ll delta, ll flow = oo)
+    {
+        if(u == t) return flow;
+
+        vis[u] = visId;
+
+        for(const auto &i : graph[u])
+        {
+            if(vis[edges[i].v] != visId && edges[i].remCap() >= delta)
+            {
+                ll bottleNeck = dfs(edges[i].v, delta, min(flow, edges[i].remCap()));
+
+                if(bottleNeck > 0)
+                {
+                    edges[i].flow += bottleNeck;
+                    edges[i ^ 1].flow -= bottleNeck;
+                    return bottleNeck;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    // get any set of edges to achieve the min cut (max flow)
+    vector < array < ll, 2 > > getEdges(ll undir = 0)
+    {
+        queue < ll > q;
+
+        q.push(s);
+        vis[s] = visId;
+
+        while(!q.empty())
+        {
+            ll u = q.front(); q.pop();
+
+            for(const auto &id : graph[u])
+            {
+                ll v = edges[id].v;
+                if(vis[v] != visId && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    vis[v] = visId;
+                }
+            }
+        }
+
+        vector < array < ll, 2 > > res;
+        for(ll i = 0; i < (ll)edges.size(); i += 2)
+        {
+            ll u = edges[i].u, v = edges[i].v;
+            if(!undir)
+            {
+                if(vis[u] == visId && vis[v] != visId) // S --> T
+                    res.push_back({u, v});
+            }
+            else
+            {
+                if((vis[u] == visId) != (vis[v] == visId))
+                {
+                    if(vis[u] != visId) swap(u, v); // S-side first
+                    res.push_back({u, v});
+                }
+            }
+        }
+
+        visId++;
+        return res;
+    }
+};
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

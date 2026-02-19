@@ -1,0 +1,96 @@
+
+
+// Keywoards:
+//           (1) find answer when nodes 1...n each is the root
+//           (2) find the min/max/... when u can choose a node from 1...n to be the root
+//           (3) prefix-suffix trick
+//           (4)
+//
+
+
+
+// determine for each node the sum of the distances from the node to all other nodes
+ll n;
+vector < vector < ll > > graph;
+vector < ll > sz, dp, ans;
+void dfs(ll u, ll p)
+{
+    sz[u] = 1;
+    dp[u] = 0;
+
+    for(const auto &v : graph[u])
+    {
+        if(v == p) continue;
+
+        dfs(v, u);
+
+        sz[u] += sz[v];
+        dp[u] += (dp[v] + sz[v]);
+    }
+
+    return;
+}
+
+void reroot(ll u, ll p)
+{
+    // u is the root
+    ans[u] = dp[u];
+
+    for(const auto &v : graph[u])
+    {
+        if(v == p) continue;
+
+        // make v the root
+        // remove contribution of v from u
+        sz[u] -= sz[v];
+        dp[u] -= (dp[v] + sz[v]);
+        // put the contribution of u in v
+        sz[v] += sz[u];
+        dp[v] += (dp[u] + sz[u]);
+
+
+        // dfs
+        reroot(v, u);
+
+        // make u the root (undo)
+        sz[v] -= sz[u];
+        dp[v] -= (dp[u] + sz[u]);
+
+        sz[u] += sz[v];
+        dp[u] += (dp[v] + sz[v]);
+    }
+
+    return;
+}
+
+
+
+void solve()
+{
+
+    cin >> n;
+    graph.assign(n + 1, {});
+    for(ll i = 1; i <= n - 1; i++)
+    {
+        ll u, v; cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+    dp.assign(n + 1, -1);
+    sz.assign(n + 1, -1);
+    ans.assign(n + 1,- 1);
+
+    dfs(1, -1);
+    reroot(1, -1);
+
+    // for(ll i = 1; i <= n; i++) cout << sz[i] << ' ';
+    // cout << endl;
+    // for(ll i = 1; i <= n; i++) cout << dp[i] << ' ';
+    // cout << endl;
+
+    for(ll i = 1; i <= n; i++) cout << ans[i] << ' ';
+    cout << endl;
+
+
+    return;
+}

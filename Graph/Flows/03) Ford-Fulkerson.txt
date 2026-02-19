@@ -1,0 +1,133 @@
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                      Ford-Fulkerson                                      */
+// A classic algorithm for computing maximum flow in a flow network.
+// Idea: Repeatedly find augmenting paths from s to t in the residual graph and push flow through it by the bottleneck value.
+// stops when there is no remaing augemnting paths --> flow is maximum
+// Each augmenting path found by DFS is O(E)
+// Time complexity is O(E * maxFlow)
+//
+
+
+
+struct Edge
+{
+    ll u, v, flow = 0, cap = 0;
+
+    Edge(ll u, ll v): u(u), v(v) { }
+    Edge(ll u, ll v, ll c): u(u), v(v), cap(c) { }
+
+    ll remCap() { return cap - flow; }
+};
+
+struct FordFulkerson
+{
+    ll n, s, t, visId = 1;
+    vector < ll > vis;
+    vector < Edge > edges;
+    vector < vector < ll > > graph; // store id of edges
+
+    FordFulkerson(ll n, ll s, ll t) : n(n), s(s), t(t)
+    {
+        vis.assign(n + 1, 0);
+        graph.assign(n + 1, {});
+    }
+
+    void addEdge(ll u, ll v, ll w = oo, ll undir = 0)
+    {
+        graph[u].push_back((ll)edges.size());
+        edges.push_back(Edge(u, v, w)); // Forward residual edge: flow/cap
+
+        graph[v].push_back((ll)edges.size());
+        edges.push_back(Edge(v, u, w * undir)); // Backward residual edge: -flow/0
+    }
+
+    ll maxFlow()
+    {
+        ll flow = 0;
+        while(ll bottleNeck = dfs(s)) flow += bottleNeck, visId++;
+        visId++;
+        return flow;
+    }
+
+    ll minCut()
+    {
+        return maxFlow();
+    }
+
+    ll dfs(ll u, ll flow = oo)
+    {
+        if(u == t) return flow;
+
+        vis[u] = visId;
+
+        for(const auto &i : graph[u])
+        {
+            if(vis[edges[i].v] != visId && edges[i].remCap() > 0)
+            {
+                ll bottleNeck = dfs(edges[i].v, min(flow, edges[i].remCap()));
+
+                if(bottleNeck > 0)
+                {
+                    edges[i].flow += bottleNeck;
+                    edges[i ^ 1].flow -= bottleNeck;
+                    return bottleNeck;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    // get any set of edges to achieve the min cut (max flow)
+    vector < array < ll, 2 > > getEdges(ll undir = 0)
+    {
+        queue < ll > q;
+
+        q.push(s);
+        vis[s] = visId;
+
+        while(!q.empty())
+        {
+            ll u = q.front(); q.pop();
+
+            for(const auto &id : graph[u])
+            {
+                ll v = edges[id].v;
+                if(vis[v] != visId && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    vis[v] = visId;
+                }
+            }
+        }
+
+        vector < array < ll, 2 > > res;
+        for(ll i = 0; i < (ll)edges.size(); i += 2)
+        {
+            ll u = edges[i].u, v = edges[i].v;
+            if(!undir)
+            {
+                if(vis[u] == visId && vis[v] != visId) // S --> T
+                    res.push_back({u, v});
+            }
+            else
+            {
+                if((vis[u] == visId) != (vis[v] == visId))
+                {
+                    if(vis[u] != visId) swap(u, v); // S-side first
+                    res.push_back({u, v});
+                }
+            }
+        }
+
+        visId++;
+        return res;
+    }
+};
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

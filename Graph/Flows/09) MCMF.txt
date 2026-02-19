@@ -1,0 +1,221 @@
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// uses SPFA (deque optimization)
+// O(V * E * F)
+
+struct Edge
+{
+    ll u, v, flow = 0, cap = 0, cost;
+
+    Edge(ll u, ll v): u(u), v(v) { }
+    Edge(ll u, ll v, ll c, ll cost=0): u(u), v(v), cap(c), cost(cost) { }
+
+    ll remCap() { return cap - flow; }
+};
+
+struct MCMF
+{
+    ll n, s, t, flow = 0, cost = 0;
+    vector < ll > from;
+    vector < Edge > edges;
+    vector < vector < ll > > graph;
+
+    MCMF(ll n, ll src, ll sink): n(n), s(src), t(sink)
+    {
+        graph.assign(n + 1, {});
+    }
+
+    void addEdge(ll u, ll v, ll w = OO, ll cost = 0, ll undir = 0)
+    {
+        graph[u].push_back((ll)edges.size());
+        edges.push_back(Edge(u, v, w, cost)); // Forward residual edge: flow/cap
+
+        graph[v].push_back((ll)edges.size());
+        edges.push_back(Edge(v, u, w * undir, -cost)); // Backward residual edge: -flow/0
+    }
+
+    void move()
+    {
+        while(bfs())
+        {
+            ll bottleneck = OO;
+
+            ll u = t;
+            while(u != s)
+            {
+                ll id = from[u];
+
+                bottleneck = min(bottleneck, edges[id].remCap());
+
+                u = edges[id].u;
+            }
+
+            u = t;
+            while(u != s)
+            {
+                ll id = from[u];
+                edges[id].flow += bottleneck;
+                edges[id ^ 1].flow -= bottleneck;
+                cost += edges[id].cost * bottleneck;
+
+                u = edges[id].u;
+            }
+
+            flow += bottleneck;
+        }
+    }
+
+    bool bfs()
+    {
+        from.assign(n + 1, -1);
+        vector < ll > dist(n + 1, oo), state(n + 1, 2);
+        deque < ll > dq;
+
+        state[s] = 1; dist[s] = 0;
+        dq.push_back(s);
+
+        while(!dq.empty())
+        {
+            ll u = dq.front(); dq.pop_front();
+            state[u] = 0;
+
+            for(const auto &id : graph[u])
+            {
+                auto &[_, v, f, c, cost] = edges[id];
+
+                if(f >= c || dist[v] <= dist[u] + cost) continue;
+
+                dist[v] = dist[u] + cost;
+                from[v] = id;
+
+                if(state[v] == 1) continue;
+
+                if(!state[v] || (!dq.empty() && dist[dq.front()] > dist[v])) dq.push_front(v);
+                else dq.push_back(v);
+                state[v] = 1;
+            }
+        }
+
+        return from[t] != -1;
+    }
+};
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// more optimized version (less memory)
+
+struct Edge
+{
+    int to;
+    ll cost;
+    ll cap, flow;
+    int backEdge;
+};
+
+struct MCMF
+{
+    int n;
+    vector < vector < Edge > > graph;
+
+    MCMF(int _n)
+    {
+        n = _n + 1;
+        graph.assign(n, {});
+    }
+
+    void addEdge(int u, int v, ll cap, ll cost)
+    {
+        Edge e1 = {v, cost, cap, 0, (int)graph[v].size()};
+        Edge e2 = {u, -cost, 0, 0, (int)graph[u].size()};
+        graph[u].push_back(e1);
+        graph[v].push_back(e2);
+    }
+
+    pair < ll, ll > minCostMaxFlow(int s, int t)
+    {
+        vector < int > state(n), from(n), from_edge(n);
+        vector < ll > dist(n);
+        deque < int > dq;
+
+        auto bfs = [&]()
+        {
+            dq.clear();
+            for(int i = 0; i < n; i++)
+                state[i] = 2, dist[i] = oo, from[i] = -1;
+
+            dq.push_back(s);
+            state[s] = 1;
+            dist[s] = 0;
+
+            while(!dq.empty())
+            {
+                int v = dq.front(); dq.pop_front();
+
+                state[v] = 0;
+
+                for(int i = 0; i < (int)graph[v].size(); i++)
+                {
+                    Edge e = graph[v][i];
+                    if(e.flow >= e.cap || (dist[e.to] <= dist[v] + e.cost)) continue;
+
+                    dist[e.to] = dist[v] + e.cost;
+                    from[e.to] = v;
+                    from_edge[e.to] = i;
+
+                    if(state[e.to] == 1) continue;
+
+                    if(!state[e.to] || (!dq.empty() && dist[dq.front()] > dist[e.to])) dq.push_front(e.to);
+                    else dq.push_back(e.to);
+
+                    state[e.to] = 1;
+                }
+            }
+            return from[t] != -1;
+        };
+
+        ll flow = 0, cost = 0;
+
+        while(bfs())
+        {
+            ll bottleneck = oo;
+
+            int u = t;
+            while(u != s)
+            {
+                bottleneck = min(bottleneck, graph[from[u]][from_edge[u]].cap - graph[from[u]][from_edge[u]].flow);
+
+                u = from[u];
+            }
+
+            u = t;
+            while(u != s)
+            {
+                graph[from[u]][from_edge[u]].flow += bottleneck;
+                graph[u][graph[from[u]][from_edge[u]].backEdge].flow -= bottleneck;
+
+                cost += graph[from[u]][from_edge[u]].cost * bottleneck;
+
+                u = from[u];
+            }
+            flow += bottleneck;
+        }
+
+        return {cost, flow};
+    }
+};
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

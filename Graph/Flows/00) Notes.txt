@@ -1,0 +1,251 @@
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/*                                      Max-Flow/Min-Cut                                      */
+
+
+
+//
+// Max Flow: what is the maximum total amount you can send from s to t without exceeding capacities?
+// Min cut: minimum total capacity you must remove/block so that s can no longer send any flow to t.
+// Max-Flow Min-Cut Theorem: Maximum flow value = Minimum cut capacity
+//
+// Augmenting path:
+// A path from source s to sink t in the residual graph such that every edge on the path still has positive remaining capacity.
+// A path that contains edges that aren't fully saturated yet.
+// Max-Flow is achieved when there is no more Augmenting paths.
+// Augmenting the flow: means updating the flow values of the edges along the augmenting path.
+//
+// bottleneck value in an augmenting path:
+// The maximum amount of flow you can push through that whole path.
+// The minimum remaining capacity of all edges on the path.
+//
+// Residual graph:
+// A graph that tells you where you can still send flow (or cancel flow) based on the current flow.
+// It contains two types of edge:
+// (1) Forward residual edge: flow/cap
+//     u --> v, with remaining capacity = cap - flow
+//     means how much more flow you can still push forward
+// (2) Backward residual edge: -flow/0
+//     u <-- v, with remaining capacity = flow
+//     means how much more flow you can undo
+//
+// How to get Min-Cut edges?
+// run BFS/DFS from s in the residual graph, nodes you can reach = set S, nodes you cannot reach = set T,
+// then the edges from S to T are the barrier blocking any more flow.
+//
+
+
+
+// Tricks:
+//
+// (1) Node-splitting
+// split the node to two nodes (v_in & v_out), and an edge go from v_in to v_out
+// used when u want to add capacity to the nodes, limit the number of paths that path through a node, ...
+//
+// (2)
+//
+//
+
+
+
+
+// Ideas:
+//
+// (1) Maximum Matching
+// https://cses.fi/problemset/task/1696
+// https://judge.yosupo.jp/problem/bipartitematching (good test cases)
+//
+// (2) Edge-disjoint paths
+// Two (or more) paths from s to t are edge-disjoint if they do not share any edge (may share vertices)
+// maximum number of edge-disjoint paths from s to t = max flow from s to t (cap(u, v) = 1)
+// https://cses.fi/problemset/task/1711/
+//
+// (3) Node-disjoint paths (Path-disjoint paths)
+// Two (or more) paths from s to t are node-disjoint if they do not share any node (can't share any edge also)
+// maximum number of node-disjoint paths from s to t = max flow from s to t (cap(u_in, u_out) = 1, cap(u_out, v_in) = ∞)
+// use note-splitting trick and make the capacity of edges of the same node = 1, and other edges capacity = ∞
+// when bi-directional edges, the edges of the same node is uni-directional, and the edges between nodes use add_edge twice https://vjudge.net/problem/LightOJ-1177
+// https://vjudge.net/problem/Gym-101656K
+// https://codeforces.com/gym/101149/problem/D
+// https://vjudge.net/problem/Gym-101982E
+// https://cses.fi/problemset/task/1711 (hard)
+//
+// (4) Project and Instruments
+// ans = sm (take all) - mincut
+// https://codeforces.com/contest/1082/problem/G (hard)
+// https://codeforces.com/problemset/problem/808/F (hard)
+// https://codeforces.com/contest/2026/problem/E
+// https://vjudge.net/problem/Gym-100548C (new idea)
+// https://vjudge.net/problem/UVA-1212 (very good)
+// https://codeforces.com/contest/1404/problem/E (very hard)
+//
+// (5) Binary search
+// https://codeforces.com/problemset/problem/653/D
+// https://codeforces.com/gym/101908/problem/G
+// https://vjudge.net/problem/UVA-13000
+// https://codeforces.com/contest/847/problem/J
+// https://vjudge.net/problem/UVA-1345
+//
+// (6) reverse idea
+// when i want to decide the winner between two nodes, put the edges on a side, and the nodes on the side
+// https://codeforces.com/contest/847/problem/J
+// https://vjudge.net/problem/UVA-1306
+//
+// (7)decoder idea
+// https://codeforces.com/gym/106084/problem/K (ans = sum(worst_cost) - maxFlow(matching))
+//
+// (8) good ideas
+// https://vjudge.net/problem/Gym-101981I
+// https://vjudge.net/problem/Gym-101208C
+// https://vjudge.net/problem/SPOJ-NWERC11F
+// https://atcoder.jp/contests/abc407/tasks/abc407_g (chess trick + step-by-step trick) (MCMF)
+//
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// Maximum Matching
+
+ll n, m, k; cin >> n >> m >> k;
+
+// (1...n), (n+1...n+m), (n + m + 1), (n + m + 2)
+ll s = n + m + 1, t = n + m + 2;
+Dinic dinic = Dinic(n + m + 2, s, t);
+
+for(ll i = 1; i <= n; i++) dinic.addEdge(s, i, 1);
+for(ll i = n + 1; i <= n + m; i++) dinic.addEdge(i, t, 1);
+for(ll i = 0; i < k; i++)
+{
+    ll u, v;  cin >> u >> v;
+    v += n;
+    dinic.addEdge(u, v, 1);
+}
+
+dinic.move();
+
+cout << dinic.maxFlow << endl;
+
+for(ll id = 0; id < (ll)dinic.edges.size(); id++)
+{
+    ll u = dinic.edges[id].u, v = dinic.edges[id].v, f = dinic.edges[id].flow;
+
+    if(1 <= u && u <= n)
+        if(n + 1 <= v && v <= n + m)
+            if(f)
+                cout << u << ' ' << v - n << endl;
+}
+
+//-------------------------------------------------------------------
+
+// Node-disjoint paths
+
+ll n, m, r, c; cin >> n >> m >> r >> c;
+r--; c--;
+vector < vector < ll > > a(n, vector < ll > (m));
+for(auto &i : a)
+    for(auto &j : i)
+        cin >> j;
+
+auto idin = [&](ll x, ll y) { return x*m + y; };
+auto idout = [&](ll x, ll y) { return x*m + y + n*m; };
+auto isBorder = [&](ll x, ll y)
+{
+    if(x == 0 || y == 0 || x == n - 1 || y == m - 1) return 1;
+    return 0;
+};
+
+ll s = 2*n*m, t = idin(r, c);
+Dinic dinic = Dinic(2*n*m, s, t);
+
+for(ll i = 0; i < n; i++)
+{
+    for(ll j = 0; j < m; j++)
+    {
+        if(i == r && j == c) continue;
+
+        dinic.addEdge(idin(i, j), idout(i, j), a[i][j]); // doesn't change
+
+        if(isBorder(i, j)) dinic.addEdge(s, idin(i, j), oo);
+
+        for(ll k = 0; k < 4; k++)
+        {
+            ll new_i = i + dx[k], new_j = j + dy[k];
+            if(0 <= new_i && new_i < n && 0 <= new_j && new_j < m)
+            {
+                dinic.addEdge(idout(i, j), idin(new_i, new_j), oo);
+            }
+        }
+    }
+}
+
+dinic.move();
+cout << dinic.minCut << endl;
+
+//-------------------------------------------------------------------
+
+// get paths in edge-disjoint paths
+
+ll n, m; cin >> n >> m;
+
+ll s = 1, t = n;
+Dinic dinic = Dinic(n, s, t);
+for(ll i = 0; i < m; i++)
+{
+    ll u, v; cin >> u >> v;
+    dinic.addEdge(u, v, 1);
+}
+dinic.move();
+
+cout << dinic.maxFlow << endl;
+
+auto dfs = [&](auto &&self, ll u, vector < ll > &path)
+{
+    if(u == n) return true;
+
+    for(const auto &id : dinic.graph[u])
+    {
+        if((id & 1ll) || !dinic.edges[id].flow) continue;
+
+        dinic.edges[id].flow--;
+
+        ll v = dinic.edges[id].v;
+
+        path.push_back(v);
+
+        if(self(self, v, path)) return true;
+
+        path.pop_back();
+        dinic.edges[id].flow++;
+    }
+
+    return false;
+};
+
+vector < vector < ll > > ans;
+while(1)
+{
+    vector < ll > path;
+    path.push_back(1);
+    bool ok = dfs(dfs, 1, path);
+
+    if(!ok) break;
+
+    ans.push_back(path);
+}
+
+for(const auto &i : ans)
+{
+    cout << (ll)i.size() << endl;
+    for(const auto &j : i)
+        cout << j << ' ';
+    cout << endl;
+}
+
+//-------------------------------------------------------------------
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+

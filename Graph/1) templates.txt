@@ -1,0 +1,224 @@
+//-----------------------------------------------------------------------
+
+// Bipartite --> DFS --> Remember that the graph can be disconnected!
+vector < ll > color; // 0 1 2
+ll c1, c2;
+ll f = 1;
+void dfs(ll root)
+{
+    if(color[root] == 1) c1++;
+    else if(color[root] == 2) c2++;
+
+    for(const auto &i : graph[root])
+    {
+        if(!color[i])
+        {
+            color[i] = 3 - color[root];
+            dfs(i);
+        }
+        else
+        {
+            if(color[i] == color[root])
+            {
+                f = 0;
+                return;
+            }
+        }
+    }
+}
+//-----------------------------------------------------------------------
+// Bipartite --> BFS --> Remember that the graph can be disconnected!
+
+vector < ll > color; // 0 1 2
+ll c1, c2;
+ll f = 1;
+void bfs(ll start)
+{
+    queue < ll > q;
+    q.push(start);
+    color[start] = 1;
+
+    while(!q.empty())
+    {
+        ll u = q.front(); q.pop();
+
+        if(color[u] == 1) c1++;
+        else if(color[u] == 2) c2++;
+
+        for(const auto &i : graph[u])
+        {
+            if(!color[i])
+            {
+                q.push(i);
+                color[i] = 3 - color[u];
+            }
+            else
+            {
+                if(color[i] == color[u]) f = 0;
+            }
+        }
+    }
+}
+//-----------------------------------------------------------------------
+// topological sort(DFS) --> DAGs only!
+
+vector < ll > vis, ans;
+void topological_sort(ll root)
+{
+    if(vis[root]) return;
+
+    vis[root] = 1;
+    for(const auto &i : graph[root])
+        topological_sort(i);
+
+    ans.push_back(root);
+}
+reverse(all(ans));
+//-----------------------------------------------------------------------
+// (topological sort(DFS) + detect cycles) --> extended version
+
+vector < char > vis, vis2, ans;
+ll f;
+void topological_sort(char root)
+{
+    if(!f) return;
+
+    vis[root] = 1; // put into the stack
+
+    for(const auto &i : graph[root])
+    {
+        if(!vis[i]) topological_sort(i);
+        else if(!vis2[i]) f = 0; // vis = 1 && vis2 = 0 --> we return to a root already in the stack yet! --> cycle
+    }
+
+    vis2[root] = 1; // already taken (removed from the stack)
+    ans.push_back(root);
+}
+
+reverse(all(ans));
+//-----------------------------------------------------------------------
+// topological sort(BFS) --> Smallest lexicographical order!
+
+vector < ll > indegree, ans;
+void bfs()
+{
+    minpq < ll > q;
+    for(ll i = 1; i <= n; i++)
+        if(!indegree[i])
+            q.push(i);
+
+    while(!q.empty())
+    {
+        ll u = q.top(); q.pop();
+        ans.push_back(u);
+
+        for(const auto &i : graph[u])
+        {
+            if(indegree[i]) indegree[i]--;
+
+            if(!indegree[i]) q.push(i);
+        }
+    }
+}
+
+if((ll)ans.size() != n)
+{
+    cout << "Cycles deteced!, can't do Topological sort" << endl;
+    return;
+}
+//-----------------------------------------------------------------------
+// detect cycles in undirected & directed graphs
+
+vector < ll > vis1, vis2;
+ll f = 1;
+void dfs(ll root, ll p = -1)
+{
+    vis1[root] = 1; // put into stack
+
+    for(const auto &i : graph[root])
+    {
+        if(i == p) continue;
+        if(!vis1[i]) dfs(i, root);           // dfs(i); --> if directed
+        else if(vis1[i] && !vis2[i]) f = 0;  // in the stack and didn't removed yet
+    }
+
+    vis2[root] = 1; // remove from the stack
+}
+//-----------------------------------------------------------------------
+// detect cycles in undirected & directed graphs --> efficient in memory
+vector < ll > vis;
+ll f = 1;
+void dfs(ll root, ll p = -1)
+{
+    vis[root] = 1; // put into stack
+
+    for(const auto &i : graph[root])
+    {
+        if(i == p) continue;
+        if(vis[i] == 0) dfs(i, root);  // dfs(i); --> if directed
+        else if(vis[i] == 1) f = 0;    // in the stack and didn't removed yet
+    }
+
+    vis[root] = 2; // remove from the stack
+}
+
+
+//-----------------------------------------------------------------------
+
+// Euler Tour
+// every node range is [ in[root], out[root] ]
+ll timer;
+vector < ll > a, in, out;
+void EulerTour(ll root = 1, ll par = -1)
+{
+    timer++;
+    in[root] = timer;
+    a[timer] = c[root];
+
+    for(const auto &i : graph[root])
+    {
+        if(i == par) continue;
+
+        EulerTour(i, root);
+    }
+
+    out[root] = timer;
+}
+
+timer = 0;
+a.assign(n + 1, -1);
+in.assign(n + 1, -1);
+out.assign(n + 1, -1);
+EulerTour();
+
+//-----------------------------------------------------------------------
+
+
+
+// Euler Tour
+// every node range is [ in[root], out[root] [
+
+ll timer;
+vector < ll > depth, in, out;
+void Euler_Tour(ll root = 1, ll par = -1, ll dep = 0)
+{
+    in[root] = timer++;
+    depth[root] = dep;
+
+    for(const auto &i : graph[root])
+    {
+        if(i == par) continue;
+
+        dfs(i, root, 1 ^ dep);
+    }
+
+    out[root] = timer;
+}
+
+timer = 0;
+in.assign(n + 1, -1);
+out.assign(n + 1, -1);
+depth.assign(n + 1, -1);
+dfs();
+
+//-----------------------------------------------------------------------

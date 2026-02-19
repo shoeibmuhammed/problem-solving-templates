@@ -1,0 +1,90 @@
+
+/*                                      MCMF (Min-Cut Max-Flow)                                      */
+//
+//
+//
+//
+//
+// ideas:
+//
+// (1) chess trick
+// (i + j) % 2 == 0 --> (i + j) % 2
+// https://atcoder.jp/contests/abc407/tasks/abc407_g
+// https://codeforces.com/group/qzYVNi8yRA/contest/604841/problem/M
+//
+// (2) incremental flow
+// add +1 in every loop, and check the best answer
+// https://atcoder.jp/contests/abc407/tasks/abc407_g
+// https://codeforces.com/group/qzYVNi8yRA/contest/604841/problem/M
+//
+// (3) match/don't match trick
+// connect the left node to the sink with cost 0 (u have two options: 1) connect with right with specific cost 2) don't connect)
+// https://atcoder.jp/contests/abc407/tasks/abc407_g
+// https://codeforces.com/group/qzYVNi8yRA/contest/604841/problem/M
+//
+// (4) Node-disjoint paths (Path-disjoint paths)
+// https://codeforces.com/contest/818/problem/F
+//
+// (5) Edge-disjoint paths
+// https://cses.fi/problemset/task/2130
+//
+// (6) get the min/max/shortest/longest paths in a graph
+// u can't do that in Dinic
+// https://cses.fi/problemset/task/2130
+//
+//
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// get paths in edge-disjoint paths
+
+auto dfs = [&](auto &&self, ll u, vector < ll > &path)
+{
+    if(u == n) return true;
+
+    for(const auto &id : mcmf.graph[u])
+    {
+        if((id & 1ll) || !mcmf.edges[id].flow) continue;
+
+        mcmf.edges[id].flow--;
+
+        ll v = mcmf.edges[id].v;
+
+        path.push_back(v);
+
+        if(self(self, v, path)) return true;
+
+        path.pop_back();
+        mcmf.edges[id].flow++;
+    }
+
+    return false;
+};
+
+vector < vector < ll > > ans;
+while(1)
+{
+    vector < ll > path;
+    path.push_back(1);
+    bool ok = dfs(dfs, 1, path);
+
+    if(!ok) break;
+
+    ans.push_back(path);
+}
+
+for(const auto &i : ans)
+{
+    cout << (ll)i.size() << endl;
+    for(const auto &j : i)
+        cout << j << ' ';
+    cout << endl;
+}
+
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

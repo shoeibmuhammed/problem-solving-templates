@@ -1,0 +1,159 @@
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                      Edmonds-Karp                                        */
+// Is a specific implementation of Ford-Fulkerson algorithm but instead using DFS, it uses BFS to find the shortest augmenting path.
+// Idea: Always chooses the shortest augmenting path (fewest edges) and push flow through it by the bottleneck value (shorter path, high chance for high bottleneck value).
+// A DFS in Ford-Fulkerson has a high chance to get long augmenting path, and longer paths  are generally undesirable,
+// because the longer the path, the higher chance to pass throuth an edge have a smaller remaining capacity.
+// Time complexity is O(V * E^2)
+//
+
+
+
+struct Edge
+{
+    ll u, v, flow = 0, cap = 0;
+
+    Edge(ll u, ll v): u(u), v(v) { }
+    Edge(ll u, ll v, ll c): u(u), v(v), cap(c) { }
+
+    ll remCap() { return cap - flow; }
+};
+
+struct EdmonsKarp
+{
+    ll n, s, t;
+    vector < ll > par;
+    vector < Edge > edges;
+    vector < vector < ll > > graph; // store id of edges
+
+    EdmonsKarp(ll n, ll src, ll sink): n(n), s(src), t(sink)
+    {
+        graph.assign(n + 1, {});
+    }
+
+    void addEdge(ll u, ll v, ll w = oo, ll undir = 0)
+    {
+        graph[u].push_back((ll)edges.size());
+        edges.push_back(Edge(u, v, w)); // Forward residual edge: flow/cap
+
+        graph[v].push_back((ll)edges.size());
+        edges.push_back(Edge(v, u, w * undir)); // Backward residual edge: -flow/0
+    }
+
+    ll maxFlow()
+    {
+        ll flow = 0;
+        while(ll bottleNeck = bfs())
+        {
+            flow += bottleNeck;
+            ll u = t;
+            while(u != s)
+            {
+                ll id = par[u];
+
+                edges[id].flow += bottleNeck;
+                edges[id ^ 1].flow -= bottleNeck;
+
+                u = edges[id].u;
+            }
+        }
+        return flow;
+    }
+
+    ll minCut()
+    {
+        return maxFlow();
+    }
+
+    ll bfs()
+    {
+        par.assign(n + 1, -1);
+        queue < array < ll, 2 > > q;
+
+        q.push({s, oo});
+        par[s] = -2;
+
+        while(!q.empty())
+        {
+            auto [u, flow] = q.front(); q.pop();
+
+            if(u == t) return flow;
+
+            for(const auto &id: graph[u])
+            {
+                ll v = edges[id].v;
+
+                if(par[v] == -1 && edges[id].remCap() > 0)
+                {
+                    par[v] = id;
+                    q.push({v, min(flow, edges[id].remCap())});
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    // get any set of edges to achieve the min cut (max flow)
+    vector < array < ll, 2 > > getEdges(ll undir = 0)
+    {
+        vector < ll > vis(n + 1, 0);
+        queue < ll > q;
+
+        q.push(s);
+        vis[s] = 1;
+
+        while(!q.empty())
+        {
+            ll u = q.front(); q.pop();
+
+            for(const auto &id : graph[u])
+            {
+                ll v = edges[id].v;
+                if(vis[v] == 0 && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    vis[v] = 1;
+                }
+            }
+        }
+
+        vector < array < ll, 2 > > res;
+        for(ll i = 0; i < (ll)edges.size(); i += 2)
+        {
+            ll u = edges[i].u, v = edges[i].v;
+            if(!undir)
+            {
+                if(vis[u] && !vis[v]) // S --> T
+                    res.push_back({u, v});
+            }
+            else
+            {
+                if(vis[u] != vis[v])
+                {
+                    if(!vis[u]) swap(u, v); // S-side first
+                    res.push_back({u, v});
+                }
+            }
+        }
+
+        return res;
+    }
+};
+
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                      Edmonds-Karp (Dijkstra version)                                       */
+//
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

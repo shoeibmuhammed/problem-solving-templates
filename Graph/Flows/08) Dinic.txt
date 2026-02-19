@@ -1,0 +1,487 @@
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+/*                                      Dinic (it's Dinitz not Dinic by the way)                                        */
+// It’s an improvement over Ford-Fulkerson and Edmonds-Karp, especially for dense networks or networks with large capacities.
+// Idea: The way the algorithm knows which edges may make progress, and which not, is to build a level graph
+// level graph is obtained by doing BFS from the source
+// Time complexity is O(V^2 * E) for general graphs (Often much faster in practice), while(sqrtl(V) * E) for unit capacity graphs
+// unit capacity graphs are graphs that all edges the are connected to any node except s and t, their capacity = 1
+//
+
+
+
+struct Edge
+{
+    ll u, v, flow = 0, cap = 0;
+
+    Edge(ll u, ll v): u(u), v(v) { }
+    Edge(ll u, ll v, ll c): u(u), v(v), cap(c) { }
+
+    ll remCap() { return cap - flow; }
+};
+
+struct Dinic
+{
+    ll n, s, t, maxFlow = 0, minCut = 0;
+    vector < ll > lvl, ptr;
+    vector < Edge > edges;
+    vector < vector < ll > > graph;
+
+    Dinic(ll n, ll src, ll sink): n(n), s(src), t(sink)
+    {
+        ptr.assign(n + 1, 0);
+        graph.assign(n + 1, {});
+    }
+
+    void addEdge(ll u, ll v, ll w = OO, ll undir = 0)
+    {
+        graph[u].push_back((ll)edges.size());
+        edges.push_back(Edge(u, v, w)); // Forward residual edge: flow/cap
+
+        graph[v].push_back((ll)edges.size());
+        edges.push_back(Edge(v, u, w * undir)); // Backward residual edge: -flow/0
+    }
+
+    void move()
+    {
+        while(bfs())
+        {
+            ptr.assign(n + 1, 0);
+            while(ll bottleneck = dfs(s)) maxFlow += bottleneck, minCut += bottleneck;
+        }
+    }
+
+    bool bfs() // build the level graph
+    {
+        lvl.assign(n + 1, -1);
+        queue < ll > q;
+
+        q.push(s);
+        lvl[s] = 0;
+
+        while(!q.empty())
+        {
+            auto u = q.front(); q.pop();
+
+            for(const auto &id: graph[u])
+            {
+                ll v = edges[id].v;
+
+                if(lvl[v] == -1 && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    lvl[v] = lvl[u] + 1;
+                }
+            }
+        }
+
+        return lvl[t] != -1; // check if i can reach t
+    }
+
+    ll dfs(ll u, ll flow = OO)
+    {
+        if(u == t) return flow;
+
+        if(!flow) return 0;
+
+        // ptr vector is an optimization used to skip edges which leads to dead ends, which saves alot time!
+        for( ; ptr[u] < (ll)graph[u].size(); ptr[u]++)
+        {
+            ll id = graph[u][ptr[u]];
+
+            ll v = edges[id].v;
+
+            if(lvl[v] == lvl[u] + 1 && edges[id].remCap() > 0)
+            {
+                ll bottleNeck = dfs(v, min(flow, edges[id].remCap()));
+
+                if(bottleNeck > 0)
+                {
+                    edges[id].flow += bottleNeck;
+                    edges[id ^ 1].flow -= bottleNeck;
+
+                    return bottleNeck;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    // get any set of edges to achieve the min cut (max flow)
+    vector < array < ll, 2 > > getEdges(ll undir = 0)
+    {
+        vector < ll > vis(n + 1, 0);
+        queue < ll > q;
+
+        q.push(s);
+        vis[s] = 1;
+
+        while(!q.empty())
+        {
+            ll u = q.front(); q.pop();
+
+            for(const auto &id: graph[u])
+            {
+                ll v = edges[id].v;
+                if(!vis[v] && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    vis[v] = 1;
+                }
+            }
+        }
+
+        vector < array < ll, 2 > > res;
+        for(ll i = 0; i < (ll)edges.size(); i += 2)
+        {
+            ll u = edges[i].u, v = edges[i].v;
+            if(!undir)
+            {
+                if(vis[u] && !vis[v])
+                    res.push_back({u, v}); // S --> T
+            }
+            else
+            {
+                if(vis[u] != vis[v])
+                {
+                    if(!vis[u]) swap(u, v); // S-side first
+                    res.push_back({u, v});
+                }
+            }
+        }
+
+        return res;
+    }
+};
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// small time improvment bcos using int
+
+struct Edge
+{
+    int u, v;
+    ll flow = 0, cap = 0;
+
+    Edge(int u, int v): u(u), v(v) { }
+    Edge(int u, int v, ll c): u(u), v(v), cap(c) { }
+
+    ll remCap() { return cap - flow; }
+};
+
+struct Dinic
+{
+    int n, s, t;
+    ll maxFlow = 0, minCut = 0;
+    vector < int > lvl, ptr;
+    vector < Edge > edges;
+    vector < vector < int > > graph;
+
+    Dinic(int n, int src, int sink): n(n), s(src), t(sink)
+    {
+        ptr.assign(n + 1, 0);
+        graph.assign(n + 1, {});
+    }
+
+    void addEdge(int u, int v, ll w = OO, int undir = 0)
+    {
+        graph[u].push_back((int)edges.size());
+        edges.push_back(Edge(u, v, w)); // Forward residual edge: flow/cap
+
+        graph[v].push_back((int)edges.size());
+        edges.push_back(Edge(v, u, w * undir)); // Backward residual edge: -flow/0
+    }
+
+    void move()
+    {
+        while(bfs())
+        {
+            ptr.assign(n + 1, 0);
+            while(ll bottleneck = dfs(s)) maxFlow += bottleneck, minCut += bottleneck;
+        }
+    }
+
+    bool bfs() // build the level graph
+    {
+        lvl.assign(n + 1, -1);
+        queue < int > q;
+
+        q.push(s);
+        lvl[s] = 0;
+
+        while(!q.empty())
+        {
+            auto u = q.front(); q.pop();
+
+            for(const auto &id: graph[u])
+            {
+                int v = edges[id].v;
+
+                if(lvl[v] == -1 && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    lvl[v] = lvl[u] + 1;
+                }
+            }
+        }
+
+        return lvl[t] != -1; // check if i can reach t
+    }
+
+    ll dfs(int u, ll flow = OO)
+    {
+        if(u == t) return flow;
+
+        if(!flow) return 0;
+
+        // ptr vector is an optimization used to skip edges which leads to dead ends, which saves alot time!
+        for( ; ptr[u] < (int)graph[u].size(); ptr[u]++)
+        {
+            int id = graph[u][ptr[u]];
+
+            int v = edges[id].v;
+
+            if(lvl[v] == lvl[u] + 1 && edges[id].remCap() > 0)
+            {
+                ll bottleNeck = dfs(v, min(flow, edges[id].remCap()));
+
+                if(bottleNeck > 0)
+                {
+                    edges[id].flow += bottleNeck;
+                    edges[id ^ 1].flow -= bottleNeck;
+
+                    return bottleNeck;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    // get any set of edges to achieve the min cut (max flow)
+    vector < array < int, 2 > > getEdges(int undir = 0)
+    {
+        vector < int > vis(n + 1, 0);
+        queue < int > q;
+
+        q.push(s);
+        vis[s] = 1;
+
+        while(!q.empty())
+        {
+            int u = q.front(); q.pop();
+
+            for(const auto &id: graph[u])
+            {
+                int v = edges[id].v;
+                if(!vis[v] && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    vis[v] = 1;
+                }
+            }
+        }
+
+        vector < array < int, 2 > > res;
+        for(int i = 0; i < (int)edges.size(); i += 2)
+        {
+            int u = edges[i].u, v = edges[i].v;
+            if(!undir)
+            {
+                if(vis[u] && !vis[v])
+                    res.push_back({u, v}); // S --> T
+            }
+            else
+            {
+                if(vis[u] != vis[v])
+                {
+                    if(!vis[u]) swap(u, v); // S-side first
+                    res.push_back({u, v});
+                }
+            }
+        }
+
+        return res;
+    }
+};
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// works with long doubles!
+struct Edge
+{
+    int u, v;
+    ld flow = 0, cap = 0;
+
+    Edge(int u, int v): u(u), v(v) { }
+    Edge(int u, int v, ld c): u(u), v(v), cap(c) { }
+
+    ld remCap() { return cap - flow; }
+};
+
+struct Dinic
+{
+    int n, s, t;
+    ld maxFlow = 0, minCut = 0;
+    vector < int > lvl, ptr;
+    vector < Edge > edges;
+    vector < vector < int > > graph;
+
+    Dinic(int n, int src, int sink): n(n), s(src), t(sink)
+    {
+        ptr.assign(n + 1, 0);
+        graph.assign(n + 1, {});
+    }
+
+    void addEdge(int u, int v, ld w = OO, int undir = 0)
+    {
+        graph[u].push_back((int)edges.size());
+        edges.push_back(Edge(u, v, w)); // Forward residual edge: flow/cap
+
+        graph[v].push_back((int)edges.size());
+        edges.push_back(Edge(v, u, w * undir)); // Backward residual edge: -flow/0
+    }
+
+    void move()
+    {
+        while(bfs())
+        {
+            ptr.assign(n + 1, 0);
+            while(ld bottleneck = dfs(s)) maxFlow += bottleneck, minCut += bottleneck;
+        }
+    }
+
+    bool bfs() // build the level graph
+    {
+        lvl.assign(n + 1, -1);
+        queue < int > q;
+
+        q.push(s);
+        lvl[s] = 0;
+
+        while(!q.empty())
+        {
+            auto u = q.front(); q.pop();
+
+            for(const auto &id: graph[u])
+            {
+                int v = edges[id].v;
+
+                if(lvl[v] == -1 && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    lvl[v] = lvl[u] + 1;
+                }
+            }
+        }
+
+        return lvl[t] != -1; // check if i can reach t
+    }
+
+    ld dfs(int u, ld flow = OO)
+    {
+        if(u == t) return flow;
+
+        if(!flow) return 0;
+
+        // ptr vector is an optimization used to skip edges which leads to dead ends, which saves alot time!
+        for( ; ptr[u] < (ll)graph[u].size(); ptr[u]++)
+        {
+            int id = graph[u][ptr[u]];
+
+            int v = edges[id].v;
+
+            if(lvl[v] == lvl[u] + 1 && edges[id].remCap() > 0)
+            {
+                ld bottleNeck = dfs(v, min(flow, edges[id].remCap()));
+
+                if(bottleNeck > 0)
+                {
+                    edges[id].flow += bottleNeck;
+                    edges[id ^ 1].flow -= bottleNeck;
+
+                    return bottleNeck;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    // get any set of edges to achieve the min cut (max flow)
+    vector < array < int, 2 > > getEdges(int undir = 0)
+    {
+        vector < int > vis(n + 1, 0);
+        queue < int > q;
+
+        q.push(s);
+        vis[s] = 1;
+
+        while(!q.empty())
+        {
+            int u = q.front(); q.pop();
+
+            for(const auto &id: graph[u])
+            {
+                int v = edges[id].v;
+                if(!vis[v] && edges[id].remCap() > 0)
+                {
+                    q.push(v);
+                    vis[v] = 1;
+                }
+            }
+        }
+
+        vector < array < int, 2 > > res;
+        for(int i = 0; i < (int)edges.size(); i += 2)
+        {
+            int u = edges[i].u, v = edges[i].v;
+            if(!undir)
+            {
+                if(vis[u] && !vis[v])
+                    res.push_back({u, v}); // S --> T
+            }
+            else
+            {
+                if(vis[u] != vis[v])
+                {
+                    if(!vis[u]) swap(u, v); // S-side first
+                    res.push_back({u, v});
+                }
+            }
+        }
+
+        return res;
+    }
+};
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+ll flow()
+{
+    ll res = 0;
+    while(bfs())
+    {
+        ptr.assign(n + 1, { });
+        while(ll f = dfs(s)) res += f;
+    }
+    return res;
+}
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+

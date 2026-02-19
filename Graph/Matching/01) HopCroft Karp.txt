@@ -1,0 +1,96 @@
+
+
+// computes the maximum matching in a bipartite unweighted graph in O(sqrtl(n) * m)
+struct HopcroftKarp
+{
+    static const int inf = 1'000'000'000;
+
+    // 1-indexed
+    int n;
+    vector < int > l, r, d;
+    vector < vector < int > > graph;
+
+    HopcroftKarp(int _n, int _m) // left nodes [1, n], right nodes [1, m]
+    {
+        n = _n;
+        int p = _n + _m + 1;
+        l.assign(p, 0);
+        r.assign(p, 0);
+        d.assign(p, 0);
+        graph.assign(p, {});
+    }
+
+    void add_edge(int u, int v) // u is left, v is right
+    {
+        // edit : right id is increased by n, so is l[u]
+        graph[u].push_back(v + n);
+    }
+
+    bool bfs()
+    {
+        queue < int > q;
+        for(int u = 1; u <= n; u++)
+        {
+            if(!l[u]) d[u] = 0, q.push(u);
+            else d[u] = inf;
+        }
+
+        d[0] = inf;
+
+        while(!q.empty())
+        {
+            int u = q.front();
+            q.pop();
+            for(int v : graph[u])
+            {
+                if(d[r[v]] == inf)
+                {
+                    d[r[v]] = d[u] + 1;
+                    q.push(r[v]);
+                }
+            }
+        }
+        return d[0] != inf;
+    }
+
+    bool dfs(int u)
+    {
+        if(!u) return true;
+
+        for (int v : graph[u])
+        {
+            if (d[r[v]] == d[u] + 1 && dfs(r[v]))
+            {
+                l[u] = v, r[v] = u;
+                return true;
+            }
+        }
+        d[u] = inf;
+        return false;
+    }
+
+    int maximum_matching()
+    {
+        int ans = 0;
+        while(bfs()) for(int u = 1; u <= n; u++) if(!l[u] && dfs(u)) ans++;
+        return ans;
+    }
+
+    vector < pair < int, int > > get_matching_edges()
+    {
+        vector < pair < int, int > > res;
+        for(int u = 1; u <= n; u++) if(l[u]) res.emplace_back(u, l[u] - n);
+        return res;
+    }
+};
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
